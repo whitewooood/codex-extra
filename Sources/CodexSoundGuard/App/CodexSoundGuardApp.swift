@@ -16,9 +16,9 @@ struct CodexSoundGuardApp: App {
             MenuBarView()
                 .environmentObject(monitor)
         } label: {
-            Label("Codex Sound Guard", systemImage: monitor.menuIconName)
+            Label("Codex 声音提醒", systemImage: monitor.menuIconName)
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
     }
 }
 

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 MODE="${1:-run}"
-APP_DISPLAY_NAME="Codex Sound Guard"
+APP_DISPLAY_NAME="Codex 声音提醒"
 APP_EXECUTABLE="CodexSoundGuard"
 BUNDLE_ID="com.whitewood.codex-sound-guard"
 MIN_SYSTEM_VERSION="13.0"

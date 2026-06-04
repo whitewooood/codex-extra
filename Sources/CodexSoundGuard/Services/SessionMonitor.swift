@@ -7,7 +7,7 @@ import OSLog
 final class SessionMonitor: ObservableObject {
     @Published private(set) var isRunning = false
     @Published private(set) var filesWatched = 0
-    @Published private(set) var lastStatus = "Idle"
+    @Published private(set) var lastStatus = "等待任务结束"
     @Published private(set) var lastOutcome: TurnOutcome?
 
     private let soundPlayer = SoundPlayer()
@@ -52,7 +52,7 @@ final class SessionMonitor: ObservableObject {
         }
 
         isRunning = true
-        lastStatus = "Monitoring"
+        lastStatus = "正在监听 Codex 会话"
         scan()
         timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -65,7 +65,7 @@ final class SessionMonitor: ObservableObject {
         timer?.invalidate()
         timer = nil
         isRunning = false
-        lastStatus = "Paused"
+        lastStatus = "监听已暂停"
     }
 
     func testCompletionSound() {
@@ -216,7 +216,7 @@ final class SessionMonitor: ObservableObject {
             logger.info("Turn classified as \(classification.outcome.rawValue, privacy: .public): \(classification.reason, privacy: .public)")
             play(outcome: classification.outcome)
             lastOutcome = classification.outcome
-            lastStatus = "\(classification.outcome.title) at \(Self.timeFormatter.string(from: Date()))"
+            lastStatus = "\(classification.outcome.title) \(Self.timeFormatter.string(from: Date()))"
         case .ignored:
             break
         }
@@ -253,9 +253,9 @@ private extension TurnOutcome {
     var title: String {
         switch self {
         case .completed:
-            return "Completed"
+            return "上次完成"
         case .failed:
-            return "Failed"
+            return "上次失败"
         }
     }
 }

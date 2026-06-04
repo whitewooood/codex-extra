@@ -13,8 +13,14 @@ enum AppDefaults {
     }
 
     static var sessionsRootPath: String {
+        URL(fileURLWithPath: codexHomePath)
+            .appendingPathComponent("sessions")
+            .path
+    }
+
+    static var codexHomePath: String {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".codex/sessions")
+            .appendingPathComponent(".codex")
             .path
     }
 
