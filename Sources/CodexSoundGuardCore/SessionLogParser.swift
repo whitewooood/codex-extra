@@ -17,69 +17,72 @@ public enum SessionLogParser {
 
         let timestamp = parseDate(root["timestamp"] as? String)
         let payloadType = payload["type"] as? String
+        let turnID = payload["turn_id"] as? String ?? root["turn_id"] as? String
 
         if let status = payload["status"] as? String,
            status.caseInsensitiveCompare("failed") == .orderedSame
             || status.caseInsensitiveCompare("error") == .orderedSame {
-            return SessionEvent(kind: .failureSignal("status:\(status)"), timestamp: timestamp)
+            return SessionEvent(kind: .failureSignal("status:\(status)"), timestamp: timestamp, turnID: turnID)
         }
 
         switch topLevelType {
         case "event_msg":
-            return parseEventMessage(payloadType: payloadType, payload: payload, timestamp: timestamp)
+            return parseEventMessage(payloadType: payloadType, payload: payload, timestamp: timestamp, turnID: turnID)
         case "response_item":
-            return parseResponseItem(payloadType: payloadType, payload: payload, timestamp: timestamp)
+            return parseResponseItem(payloadType: payloadType, payload: payload, timestamp: timestamp, turnID: turnID)
         default:
-            return SessionEvent(kind: .ignored, timestamp: timestamp)
+            return SessionEvent(kind: .ignored, timestamp: timestamp, turnID: turnID)
         }
     }
 
     private static func parseEventMessage(
         payloadType: String?,
         payload: [String: Any],
-        timestamp: Date?
+        timestamp: Date?,
+        turnID: String?
     ) -> SessionEvent {
         guard let payloadType else {
-            return SessionEvent(kind: .ignored, timestamp: timestamp)
+            return SessionEvent(kind: .ignored, timestamp: timestamp, turnID: turnID)
         }
 
         switch payloadType {
         case "task_started":
-            return SessionEvent(kind: .taskStarted, timestamp: timestamp)
+            return SessionEvent(kind: .taskStarted, timestamp: timestamp, turnID: turnID)
         case "task_complete":
-            return SessionEvent(kind: .taskComplete, timestamp: timestamp)
+            return SessionEvent(kind: .taskComplete, timestamp: timestamp, turnID: turnID)
         case "agent_message":
             if let message = payload["message"] as? String {
-                return SessionEvent(kind: .assistantMessage(message), timestamp: timestamp)
+                return SessionEvent(kind: .assistantMessage(message), timestamp: timestamp, turnID: turnID)
             }
-            return SessionEvent(kind: .ignored, timestamp: timestamp)
+            return SessionEvent(kind: .ignored, timestamp: timestamp, turnID: turnID)
         default:
             if payloadType.localizedCaseInsensitiveContains("failed")
                 || payloadType.localizedCaseInsensitiveContains("error") {
-                return SessionEvent(kind: .failureSignal("event:\(payloadType)"), timestamp: timestamp)
+                return SessionEvent(kind: .failureSignal("event:\(payloadType)"), timestamp: timestamp, turnID: turnID)
             }
-            return SessionEvent(kind: .ignored, timestamp: timestamp)
+            return SessionEvent(kind: .ignored, timestamp: timestamp, turnID: turnID)
         }
     }
 
     private static func parseResponseItem(
         payloadType: String?,
         payload: [String: Any],
-        timestamp: Date?
+        timestamp: Date?,
+        turnID: String?
     ) -> SessionEvent {
         if payloadType == "message",
            payload["role"] as? String == "assistant",
            let message = assistantText(from: payload) {
-            return SessionEvent(kind: .assistantMessage(message), timestamp: timestamp)
+            return SessionEvent(kind: .assistantMessage(message), timestamp: timestamp, turnID: turnID)
         }
 
         if payloadType == "function_call_output",
            let output = payload["output"] as? String,
            let code = commandExitCode(in: output) {
-            return SessionEvent(kind: .commandExit(code: code), timestamp: timestamp)
+            return SessionEvent(kind: .commandExit(code: code), timestamp: timestamp, turnID: turnID)
         }
 
-        return SessionEvent(kind: .ignored, timestamp: timestamp)
+        return SessionEvent(kind: .ignored, timestamp: timestamp, turnID: turnID)
     }
 
     private static func assistantText(from payload: [String: Any]) -> String? {

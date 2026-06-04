@@ -8,6 +8,14 @@ final class SessionLogParserTests: XCTestCase {
         XCTAssertEqual(SessionLogParser.parseLine(line)?.kind, .taskComplete)
     }
 
+    func testParsesTurnID() {
+        let line = #"{"timestamp":"2026-06-04T04:25:55.549Z","type":"event_msg","payload":{"type":"task_started","turn_id":"turn-1"}}"#
+
+        let event = SessionLogParser.parseLine(line)
+        XCTAssertEqual(event?.kind, .taskStarted)
+        XCTAssertEqual(event?.turnID, "turn-1")
+    }
+
     func testParsesAssistantMessage() {
         let line = #"{"timestamp":"2026-06-04T04:25:55.458Z","type":"event_msg","payload":{"type":"agent_message","message":"Done."}}"#
 

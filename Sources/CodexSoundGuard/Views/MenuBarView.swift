@@ -32,7 +32,7 @@ struct MenuBarView: View {
 
             SoundSettingPanel(
                 title: "失败提醒",
-                detail: "任务失败或受阻时播放",
+                detail: "失败事件或推断受阻时播放",
                 iconName: "exclamationmark.triangle.fill",
                 tint: .red,
                 isEnabled: $failureSoundEnabled,
@@ -91,11 +91,17 @@ struct MenuBarView: View {
                     Text(monitor.lastStatus)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    Text(monitor.lastEventStatus)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
 
                 Spacer()
 
-                MetricPill(iconName: "doc.text.magnifyingglass", text: "\(monitor.filesWatched) 个日志")
+                VStack(alignment: .trailing, spacing: 5) {
+                    MetricPill(iconName: "doc.text.magnifyingglass", text: "\(monitor.filesWatched) 个日志")
+                    MetricPill(iconName: "waveform.path.ecg", text: "\(monitor.recognizedEventCount) 个事件")
+                }
             }
         }
     }
@@ -120,7 +126,7 @@ struct MenuBarView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("命令非 0 退出也算失败")
                             .font(.subheadline.weight(.semibold))
-                        Text("默认关闭，避免探索性命令误触发")
+                        Text("失败判定包含日志事件和文本推断")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

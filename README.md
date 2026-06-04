@@ -21,7 +21,7 @@
 ./script/build_and_run.sh
 ```
 
-构建后会启动 `dist/Codex 声音提醒.app`。也可以直接使用 Codex Desktop 的 Run 按钮启动。
+构建后会更新并启动 `~/Applications/Codex 声音提醒.app`。如果已经安装登录项，Run 会通过 launchd 重启已安装版本，避免留下 `dist` 里的开发进程。也可以直接使用 Codex Desktop 的 Run 按钮启动。
 
 ## 安装为常驻工具
 
@@ -43,7 +43,7 @@
 ./script/build_and_run.sh --uninstall-login-item
 ```
 
-登录项使用 `~/Library/LaunchAgents/com.whitewood.codex-sound-guard.plist`，不会修改系统级目录。
+登录项使用 `~/Library/LaunchAgents/com.whitewood.codex-sound-guard.plist`，直接运行 `~/Applications/Codex 声音提醒.app/Contents/MacOS/CodexSoundGuard`，不会修改系统级目录。
 
 ## 默认声音
 
@@ -55,3 +55,5 @@
 ## 失败判定
 
 优先使用 Codex 日志里的失败事件；如果日志里没有明确失败事件，会检查最后的 assistant 消息。当前会识别“未能、无法、受阻、超时、中断、被取消、blocked、timed out、aborted”等表达，并避开“没有失败、没有报错、no error”等常见否定短语。
+
+这仍然是对 Codex 私有 JSONL 日志的本地适配，不是 Codex 官方稳定 API。菜单栏面板会显示最近识别到的事件，用于判断日志格式是否仍然被当前版本识别。

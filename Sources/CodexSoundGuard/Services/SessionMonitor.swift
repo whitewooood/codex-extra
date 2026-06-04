@@ -9,6 +9,8 @@ final class SessionMonitor: ObservableObject {
     @Published private(set) var filesWatched = 0
     @Published private(set) var lastStatus = "等待任务结束"
     @Published private(set) var lastOutcome: TurnOutcome?
+    @Published private(set) var lastEventStatus = "尚未识别到 Codex 事件"
+    @Published private(set) var recognizedEventCount = 0
 
     private let soundPlayer = SoundPlayer()
     private let logger = Logger(subsystem: "com.whitewood.codex-sound-guard", category: "monitor")
@@ -16,11 +18,16 @@ final class SessionMonitor: ObservableObject {
     private var offsets: [String: UInt64] = [:]
     private var partialLines: [String: String] = [:]
     private var turns: [String: TurnAccumulator] = [:]
+    private var currentTurnIDByPath: [String: String] = [:]
+    private var cachedDiscoveredFiles: [SessionFileCandidate] = []
+    private var lastFullDiscoveryAt: Date?
     private var primed = false
     private let startedAt = Date()
     private let scanInterval: TimeInterval = 1.5
     private let recentDayLookback = 7
     private let maxRecentFiles = 120
+    private let fullDiscoveryInterval: TimeInterval = 30
+    private let maxDiscoveredFiles = 240
 
     init() {
         applySettings()
@@ -85,9 +92,10 @@ final class SessionMonitor: ObservableObject {
         filesWatched = urls.count
 
         let activePaths = Set(urls.map(\.path))
-        for path in offsets.keys where !activePaths.contains(path) && turns[path] == nil {
+        for path in offsets.keys where !activePaths.contains(path) && !hasActiveTurn(forPath: path) {
             offsets.removeValue(forKey: path)
             partialLines.removeValue(forKey: path)
+            currentTurnIDByPath.removeValue(forKey: path)
         }
 
         for url in urls {
@@ -108,6 +116,13 @@ final class SessionMonitor: ObservableObject {
             recentCandidates.append(contentsOf: sessionFileCandidates(in: root, keys: keys))
         }
 
+        if shouldRefreshFullDiscovery() {
+            cachedDiscoveredFiles = Array(sessionFileCandidates(in: root, keys: keys)
+                .sorted { $0.modifiedAt > $1.modifiedAt }
+                .prefix(maxDiscoveredFiles))
+            lastFullDiscoveryAt = Date()
+        }
+
         for path in offsets.keys {
             guard FileManager.default.fileExists(atPath: path) else {
                 continue
@@ -121,11 +136,18 @@ final class SessionMonitor: ObservableObject {
         let recentURLs = Array(recentCandidates
             .sorted { $0.modifiedAt > $1.modifiedAt }
             .prefix(maxRecentFiles))
-        return (activeCandidates + recentURLs)
+        return (activeCandidates + recentURLs + cachedDiscoveredFiles)
             .filter { candidate in
                 seen.insert(candidate.url.path).inserted
             }
             .map(\.url)
+    }
+
+    private func shouldRefreshFullDiscovery() -> Bool {
+        guard let lastFullDiscoveryAt else {
+            return true
+        }
+        return Date().timeIntervalSince(lastFullDiscoveryAt) >= fullDiscoveryInterval
     }
 
     private func recentSessionRoots(under root: URL) -> [URL] {
@@ -245,29 +267,40 @@ final class SessionMonitor: ObservableObject {
     }
 
     private func process(event: SessionEvent, path: String) {
+        markRecognized(event)
+
         switch event.kind {
         case .taskStarted:
-            turns[path] = TurnAccumulator(startedAt: event.timestamp)
+            let turnID = event.turnID ?? UUID().uuidString
+            currentTurnIDByPath[path] = turnID
+            turns[turnKey(path: path, turnID: turnID)] = TurnAccumulator(startedAt: event.timestamp)
         case .assistantMessage(let message):
-            var turn = turns[path] ?? TurnAccumulator()
+            let key = eventTurnKey(path: path, event: event)
+            var turn = turns[key] ?? TurnAccumulator()
             turn.latestAssistantMessage = message
-            turns[path] = turn
+            turns[key] = turn
         case .failureSignal:
-            var turn = turns[path] ?? TurnAccumulator()
+            let key = eventTurnKey(path: path, event: event)
+            var turn = turns[key] ?? TurnAccumulator()
             turn.hasFailureSignal = true
-            turns[path] = turn
+            turns[key] = turn
         case .commandExit(let code):
             guard code != 0 else {
                 return
             }
-            var turn = turns[path] ?? TurnAccumulator()
+            let key = eventTurnKey(path: path, event: event)
+            var turn = turns[key] ?? TurnAccumulator()
             turn.hasCommandFailure = true
-            turns[path] = turn
+            turns[key] = turn
         case .taskComplete:
-            let turn = turns[path] ?? TurnAccumulator()
+            let key = eventTurnKey(path: path, event: event)
+            let turn = turns[key] ?? TurnAccumulator()
             let includeCommands = UserDefaults.standard.bool(forKey: AppDefaults.Key.commandFailureHeuristicEnabled)
             let classification = TurnClassifier.classify(turn, includeCommandFailures: includeCommands)
-            turns[path] = nil
+            turns[key] = nil
+            if event.turnID == nil || event.turnID == currentTurnIDByPath[path] {
+                currentTurnIDByPath.removeValue(forKey: path)
+            }
             logger.info("Turn classified as \(classification.outcome.rawValue, privacy: .public): \(classification.reason, privacy: .public)")
             play(outcome: classification.outcome)
             lastOutcome = classification.outcome
@@ -301,7 +334,39 @@ final class SessionMonitor: ObservableObject {
         offsets.removeAll()
         partialLines.removeAll()
         turns.removeAll()
+        currentTurnIDByPath.removeAll()
+        cachedDiscoveredFiles.removeAll()
+        lastFullDiscoveryAt = nil
         primed = false
+    }
+
+    private func eventTurnKey(path: String, event: SessionEvent) -> String {
+        if let turnID = event.turnID {
+            return turnKey(path: path, turnID: turnID)
+        }
+
+        if let currentTurnID = currentTurnIDByPath[path] {
+            return turnKey(path: path, turnID: currentTurnID)
+        }
+
+        return turnKey(path: path, turnID: "file")
+    }
+
+    private func turnKey(path: String, turnID: String) -> String {
+        "\(path)\u{1F}\(turnID)"
+    }
+
+    private func hasActiveTurn(forPath path: String) -> Bool {
+        turns.keys.contains { $0.hasPrefix("\(path)\u{1F}") }
+    }
+
+    private func markRecognized(_ event: SessionEvent) {
+        guard event.kind != .ignored else {
+            return
+        }
+
+        recognizedEventCount += 1
+        lastEventStatus = "\(event.kind.title) \(Self.timeFormatter.string(from: Date()))"
     }
 
     private static let timeFormatter: DateFormatter = {
@@ -309,6 +374,25 @@ final class SessionMonitor: ObservableObject {
         formatter.dateFormat = "HH:mm:ss"
         return formatter
     }()
+}
+
+private extension SessionEventKind {
+    var title: String {
+        switch self {
+        case .taskStarted:
+            return "识别到开始"
+        case .taskComplete:
+            return "识别到结束"
+        case .assistantMessage:
+            return "识别到回复"
+        case .failureSignal:
+            return "识别到失败事件"
+        case .commandExit:
+            return "识别到命令结果"
+        case .ignored:
+            return "忽略事件"
+        }
+    }
 }
 
 private struct SessionFileCandidate {

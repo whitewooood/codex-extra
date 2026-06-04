@@ -12,9 +12,11 @@ public enum SessionEventKind: Equatable {
 public struct SessionEvent: Equatable {
     public let kind: SessionEventKind
     public let timestamp: Date?
+    public let turnID: String?
 
-    public init(kind: SessionEventKind, timestamp: Date? = nil) {
+    public init(kind: SessionEventKind, timestamp: Date? = nil, turnID: String? = nil) {
         self.kind = kind
         self.timestamp = timestamp
+        self.turnID = turnID
     }
 }

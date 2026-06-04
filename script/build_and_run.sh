@@ -18,25 +18,10 @@ INSTALL_DIR="$HOME/Applications"
 INSTALL_BUNDLE="$INSTALL_DIR/$APP_DISPLAY_NAME.app"
 INSTALL_BINARY="$INSTALL_BUNDLE/Contents/MacOS/$APP_EXECUTABLE"
 LAUNCH_AGENT="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
+GUI_DOMAIN="gui/$(id -u)"
 
-if [[ "$MODE" == "--uninstall-login-item" || "$MODE" == "uninstall-login-item" ]]; then
-  launchctl bootout "gui/$(id -u)" "$LAUNCH_AGENT" >/dev/null 2>&1 || true
-  rm -f "$LAUNCH_AGENT"
-  echo "login item removed: $LAUNCH_AGENT"
-  exit 0
-fi
-
-pkill -x "$APP_EXECUTABLE" >/dev/null 2>&1 || true
-
-swift build
-BUILD_BINARY="$(swift build --show-bin-path)/$APP_EXECUTABLE"
-
-rm -rf "$APP_BUNDLE"
-mkdir -p "$APP_MACOS"
-cp "$BUILD_BINARY" "$APP_BINARY"
-chmod +x "$APP_BINARY"
-
-cat >"$INFO_PLIST" <<PLIST
+write_info_plist() {
+  cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -50,9 +35,9 @@ cat >"$INFO_PLIST" <<PLIST
   <key>CFBundleDisplayName</key>
   <string>$APP_DISPLAY_NAME</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.2.0</string>
+  <string>0.3.0</string>
   <key>CFBundleVersion</key>
-  <string>2</string>
+  <string>3</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>LSMinimumSystemVersion</key>
@@ -64,27 +49,33 @@ cat >"$INFO_PLIST" <<PLIST
 </dict>
 </plist>
 PLIST
+}
 
-sign_app() {
+build_app() {
+  swift build
+  local build_binary
+  build_binary="$(swift build --show-bin-path)/$APP_EXECUTABLE"
+
+  rm -rf "$APP_BUNDLE"
+  mkdir -p "$APP_MACOS"
+  cp "$build_binary" "$APP_BINARY"
+  chmod +x "$APP_BINARY"
+  write_info_plist
   /usr/bin/codesign --force --deep --sign - "$APP_BUNDLE" >/dev/null
 }
 
-open_app() {
-  /usr/bin/open -n "$APP_BUNDLE"
+stop_running_processes() {
+  pkill -x "$APP_EXECUTABLE" >/dev/null 2>&1 || true
 }
 
 install_app() {
   mkdir -p "$INSTALL_DIR"
   rm -rf "$INSTALL_BUNDLE"
   cp -R "$APP_BUNDLE" "$INSTALL_BUNDLE"
-  if [[ "${1:-open}" == "open" ]]; then
-    /usr/bin/open -n "$INSTALL_BUNDLE"
-  fi
   echo "installed: $INSTALL_BUNDLE"
 }
 
-install_login_agent() {
-  install_app "no-open"
+write_launch_agent() {
   mkdir -p "$(dirname "$LAUNCH_AGENT")"
   cat >"$LAUNCH_AGENT" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -102,42 +93,79 @@ install_login_agent() {
 </dict>
 </plist>
 PLIST
-  launchctl bootout "gui/$(id -u)" "$LAUNCH_AGENT" >/dev/null 2>&1 || true
-  launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENT"
-  launchctl enable "gui/$(id -u)/$BUNDLE_ID"
-  echo "login item installed: $LAUNCH_AGENT"
 }
 
-sign_app
+restart_launch_agent() {
+  launchctl bootout "$GUI_DOMAIN" "$LAUNCH_AGENT" >/dev/null 2>&1 || true
+  launchctl bootstrap "$GUI_DOMAIN" "$LAUNCH_AGENT"
+  launchctl enable "$GUI_DOMAIN/$BUNDLE_ID"
+}
+
+start_installed_app() {
+  if [[ -f "$LAUNCH_AGENT" ]]; then
+    restart_launch_agent
+  else
+    stop_running_processes
+    /usr/bin/open -n "$INSTALL_BUNDLE"
+  fi
+}
+
+installed_process_running() {
+  local pid command
+  while read -r pid; do
+    [[ -n "$pid" ]] || continue
+    command="$(ps -o command= -p "$pid" || true)"
+    if [[ "$command" == "$INSTALL_BINARY"* ]]; then
+      return 0
+    fi
+  done < <(pgrep -x "$APP_EXECUTABLE" || true)
+  return 1
+}
+
+build_install_and_start() {
+  build_app
+  install_app
+  start_installed_app
+}
 
 case "$MODE" in
   run)
-    open_app
+    build_install_and_start
+    ;;
+  --verify|verify)
+    build_install_and_start
+    sleep 1
+    installed_process_running
+    ;;
+  --install|install)
+    build_install_and_start
+    ;;
+  --install-login-item|install-login-item)
+    build_app
+    install_app
+    write_launch_agent
+    restart_launch_agent
+    echo "login item installed: $LAUNCH_AGENT"
+    ;;
+  --uninstall-login-item|uninstall-login-item)
+    launchctl bootout "$GUI_DOMAIN" "$LAUNCH_AGENT" >/dev/null 2>&1 || true
+    rm -f "$LAUNCH_AGENT"
+    echo "login item removed: $LAUNCH_AGENT"
     ;;
   --debug|debug)
+    build_app
     lldb -- "$APP_BINARY"
     ;;
   --logs|logs)
-    open_app
+    build_install_and_start
     /usr/bin/log stream --info --style compact --predicate "process == \"$APP_EXECUTABLE\""
     ;;
   --telemetry|telemetry)
-    open_app
+    build_install_and_start
     /usr/bin/log stream --info --style compact --predicate "subsystem == \"$BUNDLE_ID\""
     ;;
-  --verify|verify)
-    open_app
-    sleep 1
-    pgrep -x "$APP_EXECUTABLE" >/dev/null
-    ;;
-  --install|install)
-    install_app
-    ;;
-  --install-login-item|install-login-item)
-    install_login_agent
-    ;;
   *)
-    echo "usage: $0 [run|--debug|--logs|--telemetry|--verify|--install|--install-login-item|--uninstall-login-item]" >&2
+    echo "usage: $0 [run|--verify|--install|--install-login-item|--uninstall-login-item|--debug|--logs|--telemetry]" >&2
     exit 2
     ;;
 esac
