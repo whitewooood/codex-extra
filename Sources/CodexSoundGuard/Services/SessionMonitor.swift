@@ -18,6 +18,9 @@ final class SessionMonitor: ObservableObject {
     private var turns: [String: TurnAccumulator] = [:]
     private var primed = false
     private let startedAt = Date()
+    private let scanInterval: TimeInterval = 1.5
+    private let recentDayLookback = 7
+    private let maxRecentFiles = 120
 
     init() {
         applySettings()
@@ -54,7 +57,7 @@ final class SessionMonitor: ObservableObject {
         isRunning = true
         lastStatus = "正在监听 Codex 会话"
         scan()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: scanInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.scan()
             }
@@ -66,14 +69,15 @@ final class SessionMonitor: ObservableObject {
         timer = nil
         isRunning = false
         lastStatus = "监听已暂停"
+        resetScanState()
     }
 
     func testCompletionSound() {
-        play(outcome: .completed)
+        play(outcome: .completed, force: true)
     }
 
     func testFailureSound() {
-        play(outcome: .failed)
+        play(outcome: .failed, force: true)
     }
 
     private func scan() {
@@ -95,8 +99,65 @@ final class SessionMonitor: ObservableObject {
 
     private func sessionFiles() -> [URL] {
         let root = URL(fileURLWithPath: UserDefaults.standard.string(forKey: AppDefaults.Key.sessionsRootPath) ?? AppDefaults.sessionsRootPath)
+        let roots = recentSessionRoots(under: root)
         let keys: [URLResourceKey] = [.contentModificationDateKey, .fileSizeKey]
 
+        var activeCandidates: [SessionFileCandidate] = []
+        var recentCandidates: [SessionFileCandidate] = []
+        for root in roots {
+            recentCandidates.append(contentsOf: sessionFileCandidates(in: root, keys: keys))
+        }
+
+        for path in offsets.keys {
+            guard FileManager.default.fileExists(atPath: path) else {
+                continue
+            }
+            let url = URL(fileURLWithPath: path)
+            let values = try? url.resourceValues(forKeys: Set(keys))
+            activeCandidates.append(SessionFileCandidate(url: url, modifiedAt: values?.contentModificationDate ?? .distantPast))
+        }
+
+        var seen = Set<String>()
+        let recentURLs = Array(recentCandidates
+            .sorted { $0.modifiedAt > $1.modifiedAt }
+            .prefix(maxRecentFiles))
+        return (activeCandidates + recentURLs)
+            .filter { candidate in
+                seen.insert(candidate.url.path).inserted
+            }
+            .map(\.url)
+    }
+
+    private func recentSessionRoots(under root: URL) -> [URL] {
+        let calendar = Calendar(identifier: .gregorian)
+        let now = Date()
+        var roots: [URL] = []
+
+        for dayOffset in 0..<recentDayLookback {
+            guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: now) else {
+                continue
+            }
+
+            let components = calendar.dateComponents([.year, .month, .day], from: date)
+            guard let year = components.year, let month = components.month, let day = components.day else {
+                continue
+            }
+
+            let dateRoot = root
+                .appendingPathComponent(String(format: "%04d", year))
+                .appendingPathComponent(String(format: "%02d", month))
+                .appendingPathComponent(String(format: "%02d", day))
+
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: dateRoot.path, isDirectory: &isDirectory), isDirectory.boolValue {
+                roots.append(dateRoot)
+            }
+        }
+
+        return roots.isEmpty ? [root] : roots
+    }
+
+    private func sessionFileCandidates(in root: URL, keys: [URLResourceKey]) -> [SessionFileCandidate] {
         guard let enumerator = FileManager.default.enumerator(
             at: root,
             includingPropertiesForKeys: keys,
@@ -105,20 +166,14 @@ final class SessionMonitor: ObservableObject {
             return []
         }
 
-        let files = enumerator.compactMap { item -> (url: URL, date: Date) in
+        return enumerator.compactMap { item -> SessionFileCandidate? in
             guard let url = item as? URL, url.pathExtension == "jsonl" else {
-                return (URL(fileURLWithPath: ""), .distantPast)
+                return nil
             }
 
             let values = try? url.resourceValues(forKeys: Set(keys))
-            return (url, values?.contentModificationDate ?? .distantPast)
+            return SessionFileCandidate(url: url, modifiedAt: values?.contentModificationDate ?? .distantPast)
         }
-
-        return files
-            .filter { !$0.url.path.isEmpty }
-            .sorted { $0.date > $1.date }
-            .prefix(60)
-            .map(\.url)
     }
 
     private func scanFile(_ url: URL) {
@@ -222,19 +277,19 @@ final class SessionMonitor: ObservableObject {
         }
     }
 
-    private func play(outcome: TurnOutcome) {
+    private func play(outcome: TurnOutcome, force: Bool = false) {
         let defaults = UserDefaults.standard
         let volume = defaults.double(forKey: AppDefaults.Key.volume)
 
         switch outcome {
         case .completed:
-            guard defaults.bool(forKey: AppDefaults.Key.completionSoundEnabled) else {
+            guard force || defaults.bool(forKey: AppDefaults.Key.completionSoundEnabled) else {
                 return
             }
             let path = defaults.string(forKey: AppDefaults.Key.completionSoundPath) ?? AppDefaults.defaultCompletionSoundPath
             soundPlayer.play(path: path, volume: volume)
         case .failed:
-            guard defaults.bool(forKey: AppDefaults.Key.failureSoundEnabled) else {
+            guard force || defaults.bool(forKey: AppDefaults.Key.failureSoundEnabled) else {
                 return
             }
             let path = defaults.string(forKey: AppDefaults.Key.failureSoundPath) ?? AppDefaults.defaultFailureSoundPath
@@ -242,11 +297,23 @@ final class SessionMonitor: ObservableObject {
         }
     }
 
+    private func resetScanState() {
+        offsets.removeAll()
+        partialLines.removeAll()
+        turns.removeAll()
+        primed = false
+    }
+
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
         return formatter
     }()
+}
+
+private struct SessionFileCandidate {
+    let url: URL
+    let modifiedAt: Date
 }
 
 private extension TurnOutcome {

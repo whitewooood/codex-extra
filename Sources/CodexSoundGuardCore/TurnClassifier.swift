@@ -59,20 +59,60 @@ public enum TurnClassifier {
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
             .lowercased()
 
+        let negativePatterns = [
+            "没有失败",
+            "未失败",
+            "没有报错",
+            "无报错",
+            "没有出错",
+            "未出错",
+            "no failure",
+            "no failures",
+            "not failed",
+            "did not fail",
+            "without error",
+            "no error"
+        ]
+
+        if negativePatterns.contains(where: { normalized.contains($0) }) {
+            return false
+        }
+
         let patterns = [
             "未能",
             "没能",
             "无法",
+            "无法完成",
             "不能完成",
+            "不能继续",
             "失败",
             "报错",
             "出错",
+            "受阻",
+            "卡住",
+            "超时",
+            "中断",
+            "终止",
+            "被取消",
+            "取消了任务",
+            "崩溃",
+            "权限不足",
             "blocked",
             "could not",
             "couldn't",
             "unable",
             "failed",
-            "not able"
+            "not able",
+            "not completed",
+            "timed out",
+            "timeout",
+            "aborted",
+            "interrupted",
+            "cancelled",
+            "canceled",
+            "stuck",
+            "crashed",
+            "permission denied"
         ]
 
         return patterns.contains { normalized.contains($0) }
