@@ -43,7 +43,7 @@ public enum TurnClassifier {
             return TurnClassification(outcome: .failed, reason: "failure event")
         }
 
-        if includeCommandFailures && turn.hasCommandFailure {
+        if includeCommandFailures && turn.hasCommandFailure && !messageLooksLikeResolvedSuccess(turn.latestAssistantMessage) {
             return TurnClassification(outcome: .failed, reason: "command exit")
         }
 
@@ -78,10 +78,13 @@ public enum TurnClassifier {
             return false
         }
 
+        if normalizedMessageLooksLikeResolvedSuccess(normalized) {
+            return false
+        }
+
         let patterns = [
             "未能",
             "没能",
-            "无法",
             "无法完成",
             "不能完成",
             "不能继续",
@@ -116,5 +119,55 @@ public enum TurnClassifier {
         ]
 
         return patterns.contains { normalized.contains($0) }
+    }
+
+    private static func messageLooksLikeResolvedSuccess(_ message: String) -> Bool {
+        let normalized = message
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .lowercased()
+
+        return normalizedMessageLooksLikeResolvedSuccess(normalized)
+    }
+
+    private static func normalizedMessageLooksLikeResolvedSuccess(_ normalized: String) -> Bool {
+        let unresolvedPatterns = [
+            "但仍",
+            "但还是",
+            "仍然失败",
+            "仍然报错",
+            "仍然出错",
+            "still failed",
+            "still failing",
+            "still errors",
+            "but failed",
+            "but still"
+        ]
+
+        if unresolvedPatterns.contains(where: { normalized.contains($0) }) {
+            return false
+        }
+
+        let resolvedPatterns = [
+            "已修复",
+            "已经修复",
+            "修复完成",
+            "已解决",
+            "已经解决",
+            "解决完成",
+            "测试通过",
+            "构建通过",
+            "验证通过",
+            "安装验证也通过",
+            "fixed the failed",
+            "fixed the failure",
+            "resolved the error",
+            "resolved the failure",
+            "all tests pass",
+            "tests pass",
+            "build succeeded",
+            "verification passed"
+        ]
+
+        return resolvedPatterns.contains { normalized.contains($0) }
     }
 }

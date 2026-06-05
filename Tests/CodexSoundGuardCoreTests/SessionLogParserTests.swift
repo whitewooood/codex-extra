@@ -59,6 +59,12 @@ final class SessionLogParserTests: XCTestCase {
         XCTAssertFalse(TurnClassifier.messageLooksLikeFailure("Build completed with no errors."))
     }
 
+    func testDoesNotClassifySuccessfulFixSummaryAsFailure() {
+        XCTAssertFalse(TurnClassifier.messageLooksLikeFailure("已修复失败提醒误报问题，swift test 通过。"))
+        XCTAssertFalse(TurnClassifier.messageLooksLikeFailure("报错已解决，安装验证也通过。"))
+        XCTAssertFalse(TurnClassifier.messageLooksLikeFailure("Fixed the failed tests; all tests pass."))
+    }
+
     func testIgnoresCommandFailureByDefault() {
         let turn = TurnAccumulator(hasCommandFailure: true)
 
@@ -74,6 +80,18 @@ final class SessionLogParserTests: XCTestCase {
         XCTAssertEqual(
             TurnClassifier.classify(turn, includeCommandFailures: true),
             TurnClassification(outcome: .failed, reason: "command exit")
+        )
+    }
+
+    func testSuccessfulFixSummaryOverridesEarlierCommandFailure() {
+        let turn = TurnAccumulator(
+            latestAssistantMessage: "已修复失败提醒误报问题，swift test 通过。",
+            hasCommandFailure: true
+        )
+
+        XCTAssertEqual(
+            TurnClassifier.classify(turn, includeCommandFailures: true),
+            TurnClassification(outcome: .completed, reason: "task complete")
         )
     }
 }
