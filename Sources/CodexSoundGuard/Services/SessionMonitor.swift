@@ -28,6 +28,8 @@ final class SessionMonitor: ObservableObject {
     private let maxRecentFiles = 120
     private let fullDiscoveryInterval: TimeInterval = 30
     private let maxDiscoveredFiles = 240
+    private let bootstrapLookback: TimeInterval = 24 * 60 * 60
+    private let bootstrapByteLimit: UInt64 = 1_048_576
 
     init() {
         applySettings()
@@ -210,6 +212,10 @@ final class SessionMonitor: ObservableObject {
         let modifiedAt = attributes[.modificationDate] as? Date ?? .distantPast
 
         if offsets[path] == nil {
+            if shouldBootstrapContext(modifiedAt: modifiedAt) {
+                bootstrapContext(from: url, path: path, size: size)
+            }
+
             if !primed || modifiedAt < startedAt.addingTimeInterval(-5) {
                 offsets[path] = size
                 return
@@ -327,6 +333,60 @@ final class SessionMonitor: ObservableObject {
             }
             let path = defaults.string(forKey: AppDefaults.Key.failureSoundPath) ?? AppDefaults.defaultFailureSoundPath
             soundPlayer.play(path: path, volume: volume)
+        }
+    }
+
+    private func shouldBootstrapContext(modifiedAt: Date) -> Bool {
+        modifiedAt >= startedAt.addingTimeInterval(-bootstrapLookback)
+    }
+
+    private func bootstrapContext(from url: URL, path: String, size: UInt64) {
+        guard size > 0, let handle = try? FileHandle(forReadingFrom: url) else {
+            return
+        }
+
+        do {
+            let offset = size > bootstrapByteLimit ? size - bootstrapByteLimit : 0
+            try handle.seek(toOffset: offset)
+            let data = try handle.readToEnd() ?? Data()
+            try? handle.close()
+
+            let lines = bootstrapLines(from: data, startsMidLine: offset > 0)
+            let snapshot = SessionReplay.rebuild(from: lines)
+            apply(snapshot: snapshot, path: path)
+        } catch {
+            try? handle.close()
+        }
+    }
+
+    private func bootstrapLines(from data: Data, startsMidLine: Bool) -> [String] {
+        var text = String(decoding: data, as: UTF8.self)
+        if startsMidLine {
+            guard let firstNewline = text.firstIndex(of: "\n") else {
+                return []
+            }
+            text = String(text[text.index(after: firstNewline)...])
+        }
+
+        return text
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    private func apply(snapshot: SessionReplaySnapshot, path: String) {
+        for (turnID, turn) in snapshot.turnsByID {
+            turns[turnKey(path: path, turnID: turnID)] = turn
+        }
+
+        if let currentTurnID = snapshot.currentTurnID {
+            currentTurnIDByPath[path] = currentTurnID
+        } else {
+            currentTurnIDByPath.removeValue(forKey: path)
+        }
+
+        if !snapshot.turnsByID.isEmpty {
+            logger.info("Rebuilt active turn context for \(path, privacy: .public)")
         }
     }
 
