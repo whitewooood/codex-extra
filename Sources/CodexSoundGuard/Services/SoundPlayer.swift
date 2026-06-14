@@ -4,7 +4,7 @@ import OSLog
 
 @MainActor
 final class SoundPlayer {
-    private let logger = Logger(subsystem: "com.whitewood.codex-usage-meter", category: "sound")
+    private let logger = Logger(subsystem: "com.whitewood.codex-monitor", category: "sound")
     private var activeSounds: [NSSound] = []
 
     func play(path: String, volume: Double) {

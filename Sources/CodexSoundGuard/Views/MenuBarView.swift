@@ -32,7 +32,7 @@ struct MenuBarView: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Codex 用量")
+                Text("Codex Monitor")
                     .font(.headline.weight(.semibold))
                     .lineLimit(1)
                 Text(statusSubheading)

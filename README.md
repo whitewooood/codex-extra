@@ -1,4 +1,4 @@
-# Codex Usage Meter
+# Codex Monitor
 
 [![Swift](https://github.com/whitewooood/codex-extra/actions/workflows/swift.yml/badge.svg)](https://github.com/whitewooood/codex-extra/actions/workflows/swift.yml)
 [![Release](https://img.shields.io/github/v/release/whitewooood/codex-extra?display_name=tag&sort=semver)](https://github.com/whitewooood/codex-extra/releases)
@@ -7,15 +7,15 @@
 
 中文 | [English](#english)
 
-Codex Usage Meter 是一个轻量的 macOS 菜单栏工具：它把 Codex Desktop 写在本机的会话日志变成可扫一眼的用量条，并在任务完成或失败时播放本地提示音。
+Codex Monitor 是一个轻量的 macOS 菜单栏工具：它把 Codex Desktop 写在本机的会话日志变成可扫一眼的用量条，并在任务完成或失败时播放本地提示音。
 
 适合你在后台跑 Codex、切去做别的事、又不想反复回来看任务是否结束；也适合想随时看 5 小时和 7 天用量窗口的人。
 
 > 非官方工具：本项目不属于 OpenAI 或 Codex 官方产品。它只读取本机 `~/.codex/sessions` 日志，不上传数据，也不查询云端账单 API。
 
-![Menu bar meter preview](docs/assets/menu-bar-meter.svg)
+![Codex Monitor menu bar screenshot](docs/assets/screenshots/menu-bar.png)
 
-![Menu panel preview](docs/assets/menu-panel.svg)
+![Codex Monitor menu panel screenshot](docs/assets/screenshots/menu-panel.png)
 
 ## 亮点
 
@@ -32,7 +32,7 @@ Codex Usage Meter 是一个轻量的 macOS 菜单栏工具：它把 Codex Deskto
 
 [GitHub Releases](https://github.com/whitewooood/codex-extra/releases/latest)
 
-选择 `CodexUsageMeter-<version>-macOS.zip`，解压后把 `Codex Usage Meter.app` 放到 `~/Applications` 或直接打开。
+优先下载 `CodexMonitor-<version>-macOS.dmg`，打开后把 `Codex Monitor.app` 拖到 Applications。也可以下载 `CodexMonitor-<version>-macOS.zip` 手动解压使用。
 
 当前 release 使用 ad-hoc 签名，尚未 Apple notarized。macOS 可能提示无法验证开发者，见 [签名说明](docs/SIGNING.md)。
 
@@ -50,7 +50,7 @@ cd codex-extra
 ./script/build_and_run.sh
 ```
 
-脚本会构建并启动 `~/Applications/Codex Usage Meter.app`。更多安装方式见 [安装文档](docs/INSTALL.md)。
+脚本会构建并启动 `~/Applications/Codex Monitor.app`。更多安装方式见 [安装文档](docs/INSTALL.md)。
 
 ## 常驻菜单栏
 
@@ -72,11 +72,11 @@ cd codex-extra
 ./script/build_and_run.sh --uninstall-login-item
 ```
 
-登录项使用 `~/Library/LaunchAgents/com.whitewood.codex-usage-meter.plist`，不会修改系统级目录。
+登录项使用 `~/Library/LaunchAgents/com.whitewood.codex-monitor.plist`，不会修改系统级目录。
 
 ## 用量来自哪里
 
-Codex Usage Meter 读取 Codex Desktop 写入本机 JSONL 日志里的 `token_count` 事件，并显示：
+Codex Monitor 读取 Codex Desktop 写入本机 JSONL 日志里的 `token_count` 事件，并显示：
 
 - 当前会话累计 token。
 - 最近一次 token 消耗。
@@ -131,17 +131,17 @@ MIT. See [LICENSE](LICENSE).
 
 ## English
 
-[中文](#codex-usage-meter) | English
+[中文](#codex-monitor) | English
 
-Codex Usage Meter is a lightweight macOS menu bar app that turns local Codex Desktop session logs into glanceable usage bars, and plays local sounds when a task completes or fails.
+Codex Monitor is a lightweight macOS menu bar app that turns local Codex Desktop session logs into glanceable usage bars, and plays local sounds when a task completes or fails.
 
 It is useful when Codex is running in the background and you want to step away without repeatedly checking whether the task is done. It also gives you a quick view of the 5-hour and 7-day usage windows.
 
 > Unofficial tool: this project is not an OpenAI or Codex official product. It only reads local `~/.codex/sessions` logs, does not upload data, and does not call a cloud billing API.
 
-![Menu bar meter preview](docs/assets/menu-bar-meter.svg)
+![Codex Monitor menu bar screenshot](docs/assets/screenshots/menu-bar.png)
 
-![Menu panel preview](docs/assets/menu-panel.svg)
+![Codex Monitor menu panel screenshot](docs/assets/screenshots/menu-panel.png)
 
 ## Highlights
 
@@ -158,7 +158,7 @@ Download the latest version:
 
 [GitHub Releases](https://github.com/whitewooood/codex-extra/releases/latest)
 
-Choose `CodexUsageMeter-<version>-macOS.zip`, unzip it, then move `Codex Usage Meter.app` to `~/Applications` or open it directly.
+Prefer `CodexMonitor-<version>-macOS.dmg`: open it and drag `Codex Monitor.app` to Applications. A `CodexMonitor-<version>-macOS.zip` archive is also available for manual installation.
 
 Release artifacts are ad-hoc signed and not Apple notarized yet. macOS may warn that the developer cannot be verified. See [Signing](docs/SIGNING.md).
 
@@ -176,7 +176,7 @@ cd codex-extra
 ./script/build_and_run.sh
 ```
 
-The script builds and launches `~/Applications/Codex Usage Meter.app`. See [Installation](docs/INSTALL.md) for more options.
+The script builds and launches `~/Applications/Codex Monitor.app`. See [Installation](docs/INSTALL.md) for more options.
 
 ## Persistent Menu Bar App
 
@@ -198,11 +198,11 @@ Remove the login item:
 ./script/build_and_run.sh --uninstall-login-item
 ```
 
-The login item uses `~/Library/LaunchAgents/com.whitewood.codex-usage-meter.plist` and does not modify system-level directories.
+The login item uses `~/Library/LaunchAgents/com.whitewood.codex-monitor.plist` and does not modify system-level directories.
 
 ## Where Usage Comes From
 
-Codex Usage Meter reads `token_count` events from local Codex Desktop JSONL logs and displays:
+Codex Monitor reads `token_count` events from local Codex Desktop JSONL logs and displays:
 
 - Total tokens for the current session.
 - Most recent token usage.

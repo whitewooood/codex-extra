@@ -13,8 +13,10 @@
 产物会写入：
 
 ```text
-dist/release/CodexUsageMeter-<version>-macOS.zip
-dist/release/CodexUsageMeter-<version>-macOS.zip.sha256
+dist/release/CodexMonitor-<version>-macOS.dmg
+dist/release/CodexMonitor-<version>-macOS.dmg.sha256
+dist/release/CodexMonitor-<version>-macOS.zip
+dist/release/CodexMonitor-<version>-macOS.zip.sha256
 ```
 
 ## GitHub Release
@@ -27,7 +29,7 @@ dist/release/CodexUsageMeter-<version>-macOS.zip.sha256
    git push origin main v<version>
    ```
 
-3. GitHub Release workflow 会构建 macOS zip，并发布 release assets。
+3. GitHub Release workflow 会构建 macOS dmg 和 zip，并发布 release assets。
 
 ## 备注
 

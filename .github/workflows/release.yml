@@ -26,9 +26,11 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: codex-usage-meter-macos
+          name: codex-monitor-macos
+          if-no-files-found: error
           path: |
             dist/release/*.zip
+            dist/release/*.dmg
             dist/release/*.sha256
 
       - name: Create GitHub Release
@@ -39,6 +41,7 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           gh release create "$GITHUB_REF_NAME" \
             dist/release/*.zip \
+            dist/release/*.dmg \
             dist/release/*.sha256 \
-            --title "Codex Usage Meter $version" \
+            --title "Codex Monitor $version" \
             --notes "See CHANGELOG.md for changes. Release artifacts are ad-hoc signed and not notarized."

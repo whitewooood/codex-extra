@@ -14,7 +14,7 @@ final class SessionMonitor: ObservableObject {
     @Published private(set) var latestUsage: TokenUsageSnapshot?
 
     private let soundPlayer = SoundPlayer()
-    private let logger = Logger(subsystem: "com.whitewood.codex-usage-meter", category: "monitor")
+    private let logger = Logger(subsystem: "com.whitewood.codex-monitor", category: "monitor")
     private var timer: Timer?
     private var offsets: [String: UInt64] = [:]
     private var partialLines: [String: String] = [:]
@@ -32,8 +32,49 @@ final class SessionMonitor: ObservableObject {
     private let bootstrapLookback: TimeInterval = 24 * 60 * 60
     private let bootstrapByteLimit: UInt64 = 1_048_576
 
-    init() {
-        applySettings()
+    init(startsMonitoring: Bool = true) {
+        if startsMonitoring {
+            applySettings()
+        }
+    }
+
+    static func documentationPreview() -> SessionMonitor {
+        let monitor = SessionMonitor(startsMonitoring: false)
+        let now = Date()
+        monitor.isRunning = true
+        monitor.filesWatched = 18
+        monitor.lastStatus = "最近完成 22:40:18"
+        monitor.lastOutcome = .completed
+        monitor.lastEventStatus = "识别到 task_complete · turn 7f2c"
+        monitor.recognizedEventCount = 126
+        monitor.latestUsage = TokenUsageSnapshot(
+            total: TokenUsage(
+                inputTokens: 182_430,
+                cachedInputTokens: 96_120,
+                outputTokens: 24_880,
+                reasoningOutputTokens: 8_460,
+                totalTokens: 207_310
+            ),
+            last: TokenUsage(
+                inputTokens: 18_420,
+                cachedInputTokens: 11_020,
+                outputTokens: 2_940,
+                reasoningOutputTokens: 1_120,
+                totalTokens: 21_360
+            ),
+            modelContextWindow: 272_000,
+            primaryRateLimit: UsageRateLimit(
+                usedPercent: 42,
+                windowMinutes: 300,
+                resetsAt: now.addingTimeInterval(92 * 60)
+            ),
+            secondaryRateLimit: UsageRateLimit(
+                usedPercent: 68,
+                windowMinutes: 7 * 24 * 60,
+                resetsAt: now.addingTimeInterval(46 * 60 * 60)
+            )
+        )
+        return monitor
     }
 
     func applySettings() {

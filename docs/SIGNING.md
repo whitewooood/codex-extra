@@ -3,7 +3,7 @@
 当前 Release 产物使用 ad-hoc 签名：
 
 ```bash
-codesign --force --deep --sign - "Codex Usage Meter.app"
+codesign --force --deep --sign - "Codex Monitor.app"
 ```
 
 这足够用于本地开发和带 checksum 的 GitHub Release，但不等同于 Developer ID 签名和 Apple notarization。

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DISPLAY_NAME="Codex Usage Meter"
+APP_DISPLAY_NAME="Codex Monitor"
 APP_EXECUTABLE="CodexSoundGuard"
-BUNDLE_ID="com.whitewood.codex-usage-meter"
+BUNDLE_ID="com.whitewood.codex-monitor"
 MIN_SYSTEM_VERSION="13.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -16,9 +16,14 @@ APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_BINARY="$APP_MACOS/$APP_EXECUTABLE"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
-ZIP_NAME="CodexUsageMeter-$APP_VERSION-macOS.zip"
+ARTIFACT_BASENAME="CodexMonitor-$APP_VERSION-macOS"
+ZIP_NAME="$ARTIFACT_BASENAME.zip"
+DMG_NAME="$ARTIFACT_BASENAME.dmg"
 ZIP_PATH="$RELEASE_DIR/$ZIP_NAME"
-CHECKSUM_PATH="$ZIP_PATH.sha256"
+DMG_PATH="$RELEASE_DIR/$DMG_NAME"
+ZIP_CHECKSUM_PATH="$ZIP_PATH.sha256"
+DMG_CHECKSUM_PATH="$DMG_PATH.sha256"
+DMG_ROOT="$RELEASE_DIR/dmg-root"
 
 write_info_plist() {
   cat >"$INFO_PLIST" <<PLIST
@@ -66,8 +71,22 @@ xattr -cr "$APP_BUNDLE" >/dev/null 2>&1 || true
 (
   cd "$RELEASE_DIR"
   /usr/bin/ditto -c -k --norsrc --keepParent "$APP_DISPLAY_NAME.app" "$ZIP_NAME"
-  /usr/bin/shasum -a 256 "$ZIP_NAME" >"$CHECKSUM_PATH"
+  /usr/bin/shasum -a 256 "$ZIP_NAME" >"$ZIP_CHECKSUM_PATH"
 )
 
+mkdir -p "$DMG_ROOT"
+cp -R "$APP_BUNDLE" "$DMG_ROOT/"
+ln -s /Applications "$DMG_ROOT/Applications"
+/usr/bin/hdiutil create \
+  -volname "$APP_DISPLAY_NAME" \
+  -srcfolder "$DMG_ROOT" \
+  -ov \
+  -format UDZO \
+  "$DMG_PATH" >/dev/null
+/usr/bin/shasum -a 256 "$DMG_PATH" >"$DMG_CHECKSUM_PATH"
+rm -rf "$DMG_ROOT"
+
 echo "release artifact: $ZIP_PATH"
-echo "checksum: $CHECKSUM_PATH"
+echo "release artifact: $DMG_PATH"
+echo "checksum: $ZIP_CHECKSUM_PATH"
+echo "checksum: $DMG_CHECKSUM_PATH"

@@ -21,7 +21,7 @@ assignees: ""
 ## Environment
 
 - macOS version:
-- Codex Usage Meter commit or version:
+- Codex Monitor commit or version:
 - Codex Desktop version, if known:
 
 ## Logs or Screenshots

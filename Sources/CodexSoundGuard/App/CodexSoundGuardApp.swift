@@ -1,5 +1,6 @@
 import AppKit
 import CodexSoundGuardCore
+import Foundation
 import SwiftUI
 
 @main
@@ -9,6 +10,15 @@ struct CodexSoundGuardApp: App {
 
     init() {
         AppDefaults.register()
+        if CommandLine.arguments.contains("--render-docs-assets") {
+            do {
+                try DocumentationAssetRenderer.render()
+                Foundation.exit(0)
+            } catch {
+                fputs("failed to render documentation assets: \(error)\n", stderr)
+                Foundation.exit(1)
+            }
+        }
         _monitor = StateObject(wrappedValue: SessionMonitor())
     }
 

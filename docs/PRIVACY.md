@@ -1,6 +1,6 @@
 # 隐私
 
-Codex Usage Meter 是一个本地工具。
+Codex Monitor 是一个本地工具。
 
 ## 它会读取什么
 

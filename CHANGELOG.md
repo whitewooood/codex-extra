@@ -4,6 +4,15 @@
 
 本项目参考 Keep a Changelog，并使用语义化版本。
 
+## [0.2.0] - 2026-06-14
+
+### 变更
+
+- 用户可见名称从 Codex Usage Meter 改为 Codex Monitor，更准确覆盖用量、状态和提醒用途。
+- Release 产物新增 macOS dmg，保留 zip 作为备用下载格式。
+- README 改用由真实 SwiftUI 界面渲染的 PNG 截图。
+- 打包脚本和登录项 bundle id 更新为 `com.whitewood.codex-monitor`，并保留旧版本清理逻辑。
+
 ## [0.1.0] - 2026-06-14
 
 ### 新增
