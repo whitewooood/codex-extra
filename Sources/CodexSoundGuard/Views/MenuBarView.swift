@@ -16,149 +16,107 @@ struct MenuBarView: View {
     @AppStorage(AppDefaults.Key.volume) private var volume = 0.8
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             header
+            statusStrip
             usagePanel
-            diagnostics
             soundPanel
             footer
         }
         .padding(14)
-        .frame(width: 392)
+        .frame(width: 384)
         .background(.regularMaterial)
         .controlSize(.small)
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(statusTint.opacity(0.16))
-                    Circle()
-                        .strokeBorder(statusTint.opacity(0.28), lineWidth: 1)
-                    Image(systemName: monitor.menuIconName)
-                        .font(.system(size: 18, weight: .semibold))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(statusTint)
-                }
-                .frame(width: 42, height: 42)
+        HStack(spacing: 11) {
+            Image(systemName: monitor.menuIconName)
+                .font(.system(size: 17, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(statusTint)
+                .frame(width: 30, height: 30)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Codex 声音提醒")
-                        .font(.headline.weight(.semibold))
-                        .lineLimit(1)
-                    Text(statusSubheading)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 8)
-
-                Toggle("", isOn: $monitoringEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .onChange(of: monitoringEnabled) { _ in
-                        monitor.applySettings()
-                    }
-            }
-
-            HStack(spacing: 8) {
-                StatusBadge(
-                    title: monitor.isRunning ? "监听中" : "已暂停",
-                    iconName: monitor.isRunning ? "dot.radiowaves.left.and.right" : "pause.fill",
-                    tint: statusTint
-                )
-
-                StatusBadge(
-                    title: lastOutcomeLabel,
-                    iconName: lastOutcomeIcon,
-                    tint: statusTint
-                )
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(monitor.lastStatus)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Codex 声音提醒")
+                    .font(.headline.weight(.semibold))
+                    .lineLimit(1)
+                Text(statusSubheading)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(monitor.lastEventStatus)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
                     .lineLimit(1)
-                    .truncationMode(.middle)
             }
-        }
-        .padding(14)
-        .background {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(statusTint.opacity(0.11))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(statusTint.opacity(0.22), lineWidth: 1)
+
+            Spacer(minLength: 8)
+
+            Toggle("", isOn: $monitoringEnabled)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .onChange(of: monitoringEnabled) { _ in
+                    monitor.applySettings()
+                }
         }
     }
 
-    private var diagnostics: some View {
-        HStack(spacing: 8) {
-            DiagnosticMetric(
-                title: "日志",
-                value: "\(monitor.filesWatched)",
-                iconName: "doc.text.magnifyingglass",
-                tint: .blue
-            )
+    private var statusStrip: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 7) {
+                Circle()
+                    .fill(statusTint)
+                    .frame(width: 7, height: 7)
 
-            DiagnosticMetric(
-                title: "事件",
-                value: "\(monitor.recognizedEventCount)",
-                iconName: "waveform.path.ecg",
-                tint: .purple
-            )
+                Text(statusLine)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
 
-            DiagnosticMetric(
-                title: "音量",
-                value: "\(Int(volume * 100))%",
-                iconName: "speaker.wave.2.fill",
-                tint: .orange
-            )
+                Spacer()
+
+                Text("\(monitor.filesWatched) 日志 · \(monitor.recognizedEventCount) 事件")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Text(monitor.lastStatus)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Text(monitor.lastEventStatus)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(.separator.opacity(0.32), lineWidth: 1)
         }
     }
 
     private var usagePanel: some View {
         Surface {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 10) {
-                    Label("Codex 用量", systemImage: "chart.bar.xaxis")
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Text(usageHeaderValue)
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
+            VStack(alignment: .leading, spacing: 11) {
+                SectionHeader(
+                    title: "Codex 用量",
+                    iconName: "chart.line.uptrend.xyaxis",
+                    trailing: usageHeaderValue
+                )
 
                 if let usage = monitor.latestUsage {
-                    HStack(spacing: 8) {
-                        UsageNumber(title: "累计", value: formatTokenCount(usage.total.totalTokens), iconName: "sum", tint: .blue)
-                        UsageNumber(title: "最近", value: formatTokenCount(usage.last.totalTokens), iconName: "bolt.fill", tint: .green)
-                        UsageNumber(title: "上下文", value: formatContextWindow(usage.modelContextWindow), iconName: "square.stack.3d.up", tint: .purple)
-                    }
+                    TokenSummaryRow(usage: usage, formatTokenCount: formatTokenCount, formatContextWindow: formatContextWindow)
 
-                    VStack(spacing: 8) {
-                        RateLimitRow(title: "5 小时窗口", limit: usage.primaryRateLimit, tint: .blue)
-                        RateLimitRow(title: "7 天窗口", limit: usage.secondaryRateLimit, tint: .purple)
+                    VStack(spacing: 7) {
+                        RateLimitRow(title: "5 小时窗口", limit: usage.primaryRateLimit, tint: .accentColor)
+                        RateLimitRow(title: "7 天窗口", limit: usage.secondaryRateLimit, tint: .secondary)
                     }
                 } else {
-                    HStack(spacing: 10) {
-                        Image(systemName: "hourglass")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                        Text("等待 Codex 写入用量事件")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    EmptyStateLine(iconName: "hourglass", text: "等待 Codex 写入用量事件")
                 }
             }
         }
@@ -167,46 +125,44 @@ struct MenuBarView: View {
     private var soundPanel: some View {
         Surface {
             VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
-                    Label("提醒音", systemImage: "speaker.wave.2.fill")
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Text("\(Int(volume * 100))%")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
+                SectionHeader(
+                    title: "提醒音",
+                    iconName: "speaker.wave.2",
+                    trailing: "\(Int(volume * 100))%"
+                )
 
                 Slider(value: $volume, in: 0...1)
 
-                SoundRow(
-                    title: "完成",
-                    iconName: "checkmark.circle.fill",
-                    tint: .green,
-                    isEnabled: $completionSoundEnabled,
-                    soundName: shortName(completionSoundPath),
-                    testLabel: "试听完成提醒",
-                    chooseLabel: "选择完成提醒声音",
-                    testAction: { monitor.testCompletionSound() },
-                    chooseAction: { chooseSound(defaultKey: AppDefaults.Key.completionSoundPath) }
-                )
+                VStack(spacing: 6) {
+                    SoundRow(
+                        title: "完成",
+                        iconName: "checkmark",
+                        isEnabled: $completionSoundEnabled,
+                        soundName: shortName(completionSoundPath),
+                        testLabel: "试听完成提醒",
+                        chooseLabel: "选择完成提醒声音",
+                        testAction: { monitor.testCompletionSound() },
+                        chooseAction: { chooseSound(defaultKey: AppDefaults.Key.completionSoundPath) }
+                    )
 
-                SoundRow(
-                    title: "失败",
-                    iconName: "exclamationmark.triangle.fill",
-                    tint: .red,
-                    isEnabled: $failureSoundEnabled,
-                    soundName: shortName(failureSoundPath),
-                    testLabel: "试听失败提醒",
-                    chooseLabel: "选择失败提醒声音",
-                    testAction: { monitor.testFailureSound() },
-                    chooseAction: { chooseSound(defaultKey: AppDefaults.Key.failureSoundPath) }
-                )
+                    SoundRow(
+                        title: "失败",
+                        iconName: "xmark",
+                        isEnabled: $failureSoundEnabled,
+                        soundName: shortName(failureSoundPath),
+                        testLabel: "试听失败提醒",
+                        chooseLabel: "选择失败提醒声音",
+                        testAction: { monitor.testFailureSound() },
+                        chooseAction: { chooseSound(defaultKey: AppDefaults.Key.failureSoundPath) }
+                    )
+                }
 
                 Divider()
+                    .padding(.vertical, 1)
 
                 Toggle(isOn: $commandFailureHeuristicEnabled) {
                     Text("命令非 0 退出也算失败")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.caption.weight(.semibold))
                         .lineLimit(1)
                 }
                 .toggleStyle(.switch)
@@ -215,12 +171,12 @@ struct MenuBarView: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 8) {
-            FooterAction(title: "日志", iconName: "folder", tint: .blue) {
+        HStack(spacing: 6) {
+            FooterAction(title: "日志", iconName: "folder") {
                 NSWorkspace.shared.open(URL(fileURLWithPath: sessionsRootPath))
             }
 
-            FooterAction(title: "目录", iconName: "terminal", tint: .secondary) {
+            FooterAction(title: "目录", iconName: "terminal") {
                 NSWorkspace.shared.open(URL(fileURLWithPath: AppDefaults.codexHomePath))
             }
 
@@ -233,13 +189,19 @@ struct MenuBarView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .frame(width: 24, height: 24)
             }
-            .buttonStyle(IconButtonStyle(tint: .red))
+            .buttonStyle(QuietIconButtonStyle(role: .destructive))
             .help("退出")
         }
+        .padding(.top, 1)
     }
 
     private var statusSubheading: String {
         monitor.isRunning ? "完成、失败时播放本地声音" : "提醒已暂停，点击开关恢复"
+    }
+
+    private var statusLine: String {
+        let prefix = monitor.isRunning ? "监听中" : "已暂停"
+        return "\(prefix) · \(lastOutcomeLabel)"
     }
 
     private var usageHeaderValue: String {
@@ -257,17 +219,6 @@ struct MenuBarView: View {
             return "最近失败"
         case nil:
             return "等待事件"
-        }
-    }
-
-    private var lastOutcomeIcon: String {
-        switch monitor.lastOutcome {
-        case .completed:
-            return "checkmark"
-        case .failed:
-            return "xmark"
-        case nil:
-            return "clock"
         }
     }
 
@@ -328,92 +279,92 @@ private struct Surface<Content: View>: View {
         content
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(.separator.opacity(0.42), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(.separator.opacity(0.34), lineWidth: 1)
             }
     }
 }
 
-private struct StatusBadge: View {
+private struct SectionHeader: View {
     let title: String
     let iconName: String
-    let tint: Color
+    let trailing: String
 
     var body: some View {
-        Label(title, systemImage: iconName)
-            .font(.caption.weight(.semibold))
-            .lineLimit(1)
-            .foregroundStyle(tint)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(tint.opacity(0.12), in: Capsule())
+        HStack(spacing: 8) {
+            Label(title, systemImage: iconName)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+
+            Spacer()
+
+            Text(trailing)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
     }
 }
 
-private struct DiagnosticMetric: View {
-    let title: String
-    let value: String
+private struct EmptyStateLine: View {
     let iconName: String
-    let tint: Color
+    let text: String
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: iconName)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(tint)
+                .foregroundStyle(.secondary)
                 .frame(width: 18)
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Text(value)
-                    .font(.subheadline.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-            }
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .strokeBorder(.separator.opacity(0.36), lineWidth: 1)
-        }
+        .padding(.vertical, 2)
     }
 }
 
-private struct UsageNumber: View {
-    let title: String
-    let value: String
-    let iconName: String
-    let tint: Color
+private struct TokenSummaryRow: View {
+    let usage: TokenUsageSnapshot
+    let formatTokenCount: (Int) -> String
+    let formatContextWindow: (Int?) -> String
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: iconName)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 16)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Text(value)
-                    .font(.subheadline.monospacedDigit().weight(.semibold))
-                    .lineLimit(1)
-            }
+        HStack(spacing: 0) {
+            TokenMetric(title: "累计", value: formatTokenCount(usage.total.totalTokens))
+            Divider()
+                .padding(.horizontal, 10)
+            TokenMetric(title: "最近", value: formatTokenCount(usage.last.totalTokens))
+            Divider()
+                .padding(.horizontal, 10)
+            TokenMetric(title: "上下文", value: formatContextWindow(usage.modelContextWindow))
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .background(.quaternary.opacity(0.62), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+}
+
+private struct TokenMetric: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Text(value)
+                .font(.subheadline.monospacedDigit().weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.86)
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 }
 
@@ -432,7 +383,7 @@ private struct RateLimitRow: View {
                 Spacer()
                 Text(valueText)
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(tint)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
@@ -475,7 +426,6 @@ private struct RateLimitRow: View {
 private struct SoundRow: View {
     let title: String
     let iconName: String
-    let tint: Color
     @Binding var isEnabled: Bool
     let soundName: String
     let testLabel: String
@@ -484,83 +434,58 @@ private struct SoundRow: View {
     let chooseAction: () -> Void
 
     var body: some View {
-        VStack(spacing: 7) {
-            HStack(spacing: 8) {
-                Image(systemName: iconName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(isEnabled ? tint : .secondary)
-                    .frame(width: 18)
+        HStack(spacing: 8) {
+            Image(systemName: iconName)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(isEnabled ? .primary : .secondary)
+                .frame(width: 22, height: 22)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
 
+            VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.caption.weight(.semibold))
                     .lineLimit(1)
-
-                Spacer()
-
-                Toggle("", isOn: $isEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
+                Text(soundName)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
 
-            HStack(spacing: 7) {
-                SoundPill(soundName: soundName)
+            Spacer(minLength: 8)
 
-                SoundIconButton(iconName: "play.fill", tint: tint, help: testLabel, action: testAction)
-                SoundIconButton(iconName: "music.note.list", tint: .secondary, help: chooseLabel, action: chooseAction)
-            }
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary.opacity(0.7), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(borderColor, lineWidth: 1)
-        }
-    }
+            Toggle("", isOn: $isEnabled)
+                .labelsHidden()
+                .toggleStyle(.switch)
 
-    private var borderColor: Color {
-        isEnabled ? tint.opacity(0.30) : Color.secondary.opacity(0.18)
+            SoundIconButton(iconName: "play.fill", help: testLabel, action: testAction)
+            SoundIconButton(iconName: "music.note.list", help: chooseLabel, action: chooseAction)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 }
 
 private struct SoundIconButton: View {
     let iconName: String
-    let tint: Color
     let help: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: iconName)
-                .font(.system(size: 11, weight: .semibold))
-                .frame(width: 24, height: 24)
+                .font(.system(size: 10, weight: .semibold))
+                .frame(width: 22, height: 22)
         }
-        .buttonStyle(IconButtonStyle(tint: tint))
+        .buttonStyle(QuietIconButtonStyle())
         .help(help)
-    }
-}
-
-private struct SoundPill: View {
-    let soundName: String
-
-    var body: some View {
-        Label(soundName, systemImage: "music.note")
-            .font(.caption)
-            .lineLimit(1)
-            .truncationMode(.middle)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.quaternary, in: Capsule())
     }
 }
 
 private struct FooterAction: View {
     let title: String
     let iconName: String
-    let tint: Color
     let action: () -> Void
 
     var body: some View {
@@ -571,26 +496,47 @@ private struct FooterAction: View {
                 .padding(.horizontal, 9)
                 .frame(height: 24)
         }
-        .buttonStyle(FooterButtonStyle(tint: tint))
+        .buttonStyle(QuietCapsuleButtonStyle())
     }
 }
 
-private struct IconButtonStyle: ButtonStyle {
-    var tint: Color
+private struct QuietIconButtonStyle: ButtonStyle {
+    enum Role {
+        case normal
+        case destructive
+    }
+
+    var role: Role = .normal
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(tint)
-            .background(tint.opacity(configuration.isPressed ? 0.18 : 0.10), in: Circle())
+            .foregroundStyle(foreground)
+            .background(background(isPressed: configuration.isPressed), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+
+    private var foreground: Color {
+        switch role {
+        case .normal:
+            return .secondary
+        case .destructive:
+            return .red
+        }
+    }
+
+    private func background(isPressed: Bool) -> Color {
+        switch role {
+        case .normal:
+            return Color.secondary.opacity(isPressed ? 0.16 : 0.08)
+        case .destructive:
+            return Color.red.opacity(isPressed ? 0.16 : 0.08)
+        }
     }
 }
 
-private struct FooterButtonStyle: ButtonStyle {
-    var tint: Color
-
+private struct QuietCapsuleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(tint)
-            .background(tint.opacity(configuration.isPressed ? 0.18 : 0.10), in: Capsule())
+            .foregroundStyle(.secondary)
+            .background(Color.secondary.opacity(configuration.isPressed ? 0.16 : 0.08), in: Capsule())
     }
 }
