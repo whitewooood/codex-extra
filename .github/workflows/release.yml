@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Run tests
         run: swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
@@ -24,7 +24,7 @@ jobs:
         run: ./script/package_release.sh
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: codex-usage-meter-macos
           path: |
