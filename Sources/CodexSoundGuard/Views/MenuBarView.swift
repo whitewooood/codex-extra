@@ -13,6 +13,7 @@ struct MenuBarView: View {
         VStack(alignment: .leading, spacing: 12) {
             header
             usagePanel
+            readinessPanel
             trendPanel
             sessionRankingPanel
             statusStrip
@@ -91,7 +92,31 @@ struct MenuBarView: View {
                     UsageSummaryPills(usage: usage)
                     RemainingLimitStack(usage: usage)
                 } else {
-                    EmptyStateLine(iconName: "hourglass", text: "等待用量数据")
+                    EmptyStateLine(
+                        iconName: "hourglass",
+                        text: "等待用量数据",
+                        detail: usageEmptyDetail
+                    )
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var readinessPanel: some View {
+        if monitor.latestUsage == nil || monitor.filesWatched == 0 || monitor.recognizedEventCount == 0 {
+            Surface(prominence: .quiet) {
+                VStack(alignment: .leading, spacing: 9) {
+                    SectionHeader(
+                        title: "就绪检查",
+                        iconName: "checklist",
+                        trailing: readinessSummary
+                    )
+                    ReadinessChecklist(rows: readinessRows)
+                    InsightLine(
+                        iconName: "lock.shield",
+                        text: "只读取本机 ~/.codex/sessions，不上传日志，也不查询云端账单。"
+                    )
                 }
             }
         }
@@ -108,8 +133,13 @@ struct MenuBarView: View {
 
                 if monitor.usageTrend.contains(where: { $0.tokens > 0 }) {
                     UsageTrendChart(points: monitor.usageTrend)
+                    InsightLine(iconName: "info.circle", text: "趋势按小时汇总最近一次 token 消耗，用来判断近 24 小时 Codex 活跃峰值。")
                 } else {
-                    EmptyStateLine(iconName: "chart.line.uptrend.xyaxis", text: "等待用量数据")
+                    EmptyStateLine(
+                        iconName: "chart.line.uptrend.xyaxis",
+                        text: "等待趋势数据",
+                        detail: "运行一次 Codex 任务后，这里会按小时显示最近 24 小时消耗。"
+                    )
                 }
             }
         }
@@ -125,14 +155,20 @@ struct MenuBarView: View {
                 )
 
                 if monitor.sessionUsageRankings.isEmpty {
-                    EmptyStateLine(iconName: "doc.text.magnifyingglass", text: "暂无会话用量")
+                    EmptyStateLine(
+                        iconName: "doc.text.magnifyingglass",
+                        text: "暂无会话排行",
+                        detail: "识别到 token 用量后，会显示最近消耗最高的 3 个任务。"
+                    )
                 } else {
                     VStack(spacing: 6) {
                         ForEach(Array(monitor.sessionUsageRankings.enumerated()), id: \.element.id) { index, summary in
                             SessionRankRow(
                                 rank: index + 1,
                                 summary: summary,
-                                maxTokens: monitor.sessionUsageRankings.map(\.totalTokens).max() ?? summary.totalTokens
+                                maxTokens: monitor.sessionUsageRankings.map(\.totalTokens).max() ?? summary.totalTokens,
+                                openAction: { openSession(summary) },
+                                copyAction: { copySessionPath(summary) }
                             )
                         }
                     }
@@ -179,6 +215,37 @@ struct MenuBarView: View {
         monitor.isRunning ? "本地用量与任务提醒" : "监听已暂停"
     }
 
+    private var usageEmptyDetail: String {
+        if !sessionsRootExists {
+            return "没有找到 Codex 日志目录，先运行 Codex Desktop 完成一次任务。"
+        }
+        if monitor.filesWatched == 0 {
+            return "已找到日志目录，但还没有可读取的 session 文件。"
+        }
+        if monitor.recognizedEventCount == 0 {
+            return "已看到 session 文件，正在等待 Codex 写入可识别事件。"
+        }
+        return "已识别到事件，等待下一次 token_count 用量事件。"
+    }
+
+    private var readinessRows: [ReadinessRow] {
+        [
+            ReadinessRow(title: sessionsRootExists ? "已找到 Codex 日志目录" : "未找到 Codex 日志目录", isReady: sessionsRootExists),
+            ReadinessRow(title: monitor.filesWatched > 0 ? "已发现 \(monitor.filesWatched) 个 session 文件" : "等待 session 文件", isReady: monitor.filesWatched > 0),
+            ReadinessRow(title: monitor.recognizedEventCount > 0 ? "已识别 \(monitor.recognizedEventCount) 个事件" : "等待 Codex 写入事件", isReady: monitor.recognizedEventCount > 0),
+            ReadinessRow(title: monitor.latestUsage == nil ? "等待 token_count 用量" : "已读取用量数据", isReady: monitor.latestUsage != nil)
+        ]
+    }
+
+    private var readinessSummary: String {
+        let ready = readinessRows.filter(\.isReady).count
+        return "\(ready)/\(readinessRows.count)"
+    }
+
+    private var sessionsRootExists: Bool {
+        FileManager.default.fileExists(atPath: sessionsRootPath)
+    }
+
     private var statusLine: String {
         let prefix = monitor.isRunning ? "监听中" : "已暂停"
         return "\(prefix) · \(lastOutcomeLabel)"
@@ -220,6 +287,15 @@ struct MenuBarView: View {
 
     private func openSettings() {
         PreferencesWindowController.shared.show(monitor: monitor, updateChecker: updateChecker)
+    }
+
+    private func openSession(_ summary: SessionUsageSummary) {
+        NSWorkspace.shared.open(URL(fileURLWithPath: summary.path))
+    }
+
+    private func copySessionPath(_ summary: SessionUsageSummary) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(summary.path, forType: .string)
     }
 
 }

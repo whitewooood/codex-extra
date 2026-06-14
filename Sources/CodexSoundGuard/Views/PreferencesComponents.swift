@@ -5,6 +5,7 @@ enum PreferencesPane: String, CaseIterable, Identifiable {
     case general
     case sounds
     case limits
+    case diagnostics
 
     var id: String {
         rawValue
@@ -18,6 +19,8 @@ enum PreferencesPane: String, CaseIterable, Identifiable {
             return "声音"
         case .limits:
             return "额度"
+        case .diagnostics:
+            return "诊断"
         }
     }
 
@@ -29,6 +32,8 @@ enum PreferencesPane: String, CaseIterable, Identifiable {
             return "提示音与静音"
         case .limits:
             return "阈值与数据"
+        case .diagnostics:
+            return "状态与隐私"
         }
     }
 
@@ -40,6 +45,8 @@ enum PreferencesPane: String, CaseIterable, Identifiable {
             return "speaker.wave.2"
         case .limits:
             return "gauge.with.dots.needle.50percent"
+        case .diagnostics:
+            return "stethoscope"
         }
     }
 }
@@ -418,6 +425,103 @@ struct SettingsFootnote: View {
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
             .settingsRow(verticalPadding: 8)
+    }
+}
+
+struct SettingsInfoBox: View {
+    let title: String
+    let text: String
+    var iconName = "info.circle"
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: iconName)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(InterfaceDesign.accent)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(text)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .settingsRow(verticalPadding: 10)
+    }
+}
+
+struct DiagnosticStatusRow: View {
+    enum Status {
+        case ok
+        case warning
+        case neutral
+
+        var iconName: String {
+            switch self {
+            case .ok:
+                return "checkmark.circle.fill"
+            case .warning:
+                return "exclamationmark.triangle.fill"
+            case .neutral:
+                return "circle.fill"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .ok:
+                return InterfaceDesign.accent
+            case .warning:
+                return Color.orange
+            case .neutral:
+                return Color.secondary.opacity(0.70)
+            }
+        }
+    }
+
+    let title: String
+    let detail: String
+    let status: Status
+    var actionTitle: String?
+    var actionIcon: String?
+    var action: (() -> Void)?
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: status.iconName)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(status.color)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+            }
+
+            Spacer(minLength: 12)
+
+            if let actionTitle, let action {
+                Button(action: action) {
+                    Label(actionTitle, systemImage: actionIcon ?? "arrow.right")
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                        .padding(.horizontal, 10)
+                        .frame(height: 28)
+                }
+                .buttonStyle(SettingsActionButtonStyle())
+            }
+        }
+        .settingsRow()
     }
 }
 

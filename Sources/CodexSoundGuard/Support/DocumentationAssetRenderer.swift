@@ -39,6 +39,13 @@ enum DocumentationAssetRenderer {
             size: CGSize(width: 780, height: 700),
             to: outputDirectory.appendingPathComponent("preferences.png")
         )
+        try render(
+            PreferencesView(initialPane: .diagnostics, loginItemStatusProvider: { .disabled })
+                .environmentObject(monitor)
+                .environmentObject(updateChecker),
+            size: CGSize(width: 780, height: 700),
+            to: outputDirectory.appendingPathComponent("preferences-diagnostics.png")
+        )
     }
 
     private static func render<V: View>(_ view: V, size: CGSize, to url: URL) throws {

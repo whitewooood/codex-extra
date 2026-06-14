@@ -209,20 +209,82 @@ struct SectionHeader: View {
 struct EmptyStateLine: View {
     let iconName: String
     let text: String
+    var detail: String?
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: iconName)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(InterfaceDesign.accent.opacity(0.72))
                 .frame(width: 18)
+                .padding(.top, 1)
 
-            Text(text)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(text)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if let detail {
+                    Text(detail)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
         .padding(.vertical, 2)
+    }
+}
+
+struct ReadinessChecklist: View {
+    let rows: [ReadinessRow]
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ForEach(rows) { row in
+                HStack(spacing: 8) {
+                    Image(systemName: row.isReady ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(row.isReady ? InterfaceDesign.accent : Color.secondary.opacity(0.55))
+                        .frame(width: 16)
+
+                    Text(row.title)
+                        .font(.caption2)
+                        .foregroundStyle(row.isReady ? .secondary : .tertiary)
+                        .lineLimit(1)
+
+                    Spacer(minLength: 6)
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(InterfaceDesign.basePanel.opacity(0.50), in: RoundedRectangle(cornerRadius: InterfaceDesign.controlRadius, style: .continuous))
+    }
+}
+
+struct ReadinessRow: Identifiable {
+    let id = UUID()
+    let title: String
+    let isReady: Bool
+}
+
+struct InsightLine: View {
+    let iconName: String
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 7) {
+            Image(systemName: iconName)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(InterfaceDesign.accent.opacity(0.80))
+                .frame(width: 15)
+                .padding(.top, 1)
+            Text(text)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
@@ -459,6 +521,8 @@ struct SessionRankRow: View {
     let rank: Int
     let summary: SessionUsageSummary
     let maxTokens: Int
+    let openAction: () -> Void
+    let copyAction: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -487,6 +551,22 @@ struct SessionRankRow: View {
                     .font(.caption.monospacedDigit().weight(.semibold))
                     .lineLimit(1)
                     .help("会话累计 token")
+
+                HStack(spacing: 4) {
+                    Button(action: openAction) {
+                        Image(systemName: "arrow.up.right.square")
+                            .frame(width: 22, height: 22)
+                    }
+                    .buttonStyle(QuietIconButtonStyle())
+                    .help("打开 session 文件")
+
+                    Button(action: copyAction) {
+                        Image(systemName: "doc.on.doc")
+                            .frame(width: 22, height: 22)
+                    }
+                    .buttonStyle(QuietIconButtonStyle())
+                    .help("复制 session 路径")
+                }
             }
 
             GeometryReader { proxy in
