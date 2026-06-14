@@ -10,7 +10,7 @@ enum DocumentationAssetRenderer {
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
 
         let monitor = SessionMonitor.documentationPreview()
-        let updateChecker = UpdateChecker(currentVersion: "0.3.5")
+        let updateChecker = UpdateChecker(currentVersion: currentVersion())
         try render(
             MenuBarPreviewStrip(usage: monitor.latestUsage),
             size: CGSize(width: 840, height: 164),
@@ -46,6 +46,17 @@ enum DocumentationAssetRenderer {
             size: CGSize(width: 780, height: 700),
             to: outputDirectory.appendingPathComponent("preferences-diagnostics.png")
         )
+    }
+
+    private static func currentVersion() -> String {
+        let versionURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("VERSION")
+        let version = (try? String(contentsOf: versionURL, encoding: .utf8))?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let version, !version.isEmpty else {
+            return "0.0.0"
+        }
+        return version
     }
 
     private static func render<V: View>(_ view: V, size: CGSize, to url: URL) throws {
