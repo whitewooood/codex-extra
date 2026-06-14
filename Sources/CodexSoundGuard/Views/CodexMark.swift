@@ -1,5 +1,6 @@
-import SwiftUI
+import AppKit
 import CodexSoundGuardCore
+import SwiftUI
 
 struct CodexMark: View {
     let statusTint: Color
@@ -38,29 +39,13 @@ struct CodexUsageMeter: View {
     let usage: TokenUsageSnapshot?
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            VStack(spacing: 2) {
-                TinyUsageBar(usedPercent: usage?.primaryRateLimit?.usedPercent, tint: .accentColor)
-                TinyUsageBar(usedPercent: usage?.secondaryRateLimit?.usedPercent, tint: .secondary)
-            }
-            .padding(.horizontal, 3)
-            .padding(.vertical, 4)
-            .frame(width: 18, height: 18)
-            .background(.quaternary, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .strokeBorder(.separator.opacity(0.45), lineWidth: 1)
-            }
-
-            Circle()
-                .fill(statusTint)
-                .frame(width: 5, height: 5)
-                .offset(x: 1, y: 1)
-        }
-        .frame(width: 19, height: 18)
-        .fixedSize()
-        .accessibilityLabel(accessibilityLabel)
-        .help(helpText)
+        Image(nsImage: meterImage)
+            .resizable()
+            .interpolation(.high)
+            .frame(width: 19, height: 18)
+            .fixedSize()
+            .accessibilityLabel(accessibilityLabel)
+            .help(helpText)
     }
 
     private var accessibilityLabel: String {
@@ -79,37 +64,65 @@ struct CodexUsageMeter: View {
         let secondary = usage.secondaryRateLimit.map { "7 天 \(UsageFormatter.percent($0.usedPercent))" } ?? "7 天 --"
         return "\(primary) · \(secondary)"
     }
-}
 
-private struct TinyUsageBar: View {
-    let usedPercent: Double?
-    let tint: Color
+    private var meterImage: NSImage {
+        let image = NSImage(size: NSSize(width: 19, height: 18))
+        image.isTemplate = false
+        image.lockFocus()
+        defer { image.unlockFocus() }
 
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.secondary.opacity(0.20))
+        let bodyRect = CGRect(x: 0.75, y: 1.25, width: 16, height: 15.5)
+        let bodyPath = NSBezierPath(roundedRect: bodyRect, xRadius: 4.5, yRadius: 4.5)
+        NSColor.labelColor.withAlphaComponent(0.08).setFill()
+        bodyPath.fill()
+        NSColor.labelColor.withAlphaComponent(0.58).setStroke()
+        bodyPath.lineWidth = 1
+        bodyPath.stroke()
 
-                Capsule()
-                    .fill(fillStyle)
-                    .frame(width: proxy.size.width * progress)
-            }
-        }
-        .frame(height: 4)
+        drawBar(
+            rect: CGRect(x: 3.5, y: 10.3, width: 10, height: 3),
+            usedPercent: usage?.primaryRateLimit?.usedPercent,
+            fillColor: .controlAccentColor
+        )
+        drawBar(
+            rect: CGRect(x: 3.5, y: 5.0, width: 10, height: 3),
+            usedPercent: usage?.secondaryRateLimit?.usedPercent,
+            fillColor: NSColor.labelColor.withAlphaComponent(0.72)
+        )
+
+        let dotPath = NSBezierPath(ovalIn: CGRect(x: 13.25, y: 0.9, width: 5.5, height: 5.5))
+        NSColor.windowBackgroundColor.withAlphaComponent(0.85).setFill()
+        dotPath.fill()
+
+        let innerDotPath = NSBezierPath(ovalIn: CGRect(x: 14.0, y: 1.65, width: 4, height: 4))
+        resolvedStatusColor.setFill()
+        innerDotPath.fill()
+
+        return image
     }
 
-    private var progress: Double {
+    private var resolvedStatusColor: NSColor {
+        NSColor(statusTint).usingColorSpace(.deviceRGB) ?? .controlAccentColor
+    }
+
+    private func drawBar(rect: CGRect, usedPercent: Double?, fillColor: NSColor) {
+        let trackPath = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
+        NSColor.labelColor.withAlphaComponent(0.24).setFill()
+        trackPath.fill()
+
         guard let usedPercent else {
-            return 0
+            return
         }
-        return max(0, min(usedPercent, 100)) / 100
-    }
 
-    private var fillStyle: Color {
-        guard usedPercent != nil else {
-            return Color.clear
+        let progress = max(0, min(usedPercent, 100)) / 100
+        guard progress > 0 else {
+            return
         }
-        return tint
+
+        let fillWidth = max(1.2, rect.width * progress)
+        let fillRect = CGRect(x: rect.minX, y: rect.minY, width: fillWidth, height: rect.height)
+        let fillPath = NSBezierPath(roundedRect: fillRect, xRadius: rect.height / 2, yRadius: rect.height / 2)
+        fillColor.setFill()
+        fillPath.fill()
     }
 }
