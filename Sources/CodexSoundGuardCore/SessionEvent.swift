@@ -3,6 +3,7 @@ import Foundation
 public enum SessionEventKind: Equatable {
     case taskStarted
     case taskComplete
+    case userMessage(String)
     case assistantMessage(String)
     case failureSignal(String)
     case commandExit(code: Int)
@@ -19,6 +20,16 @@ public struct SessionEvent: Equatable {
         self.kind = kind
         self.timestamp = timestamp
         self.turnID = turnID
+    }
+}
+
+public struct TokenUsageEvent: Equatable {
+    public let timestamp: Date
+    public let usage: TokenUsageSnapshot
+
+    public init(timestamp: Date, usage: TokenUsageSnapshot) {
+        self.timestamp = timestamp
+        self.usage = usage
     }
 }
 

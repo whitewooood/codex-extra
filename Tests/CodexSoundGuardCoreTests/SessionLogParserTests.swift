@@ -28,6 +28,18 @@ final class SessionLogParserTests: XCTestCase {
         XCTAssertEqual(SessionLogParser.parseLine(line)?.kind, .assistantMessage("完成。"))
     }
 
+    func testParsesUserMessage() {
+        let line = #"{"timestamp":"2026-06-04T04:25:55.458Z","type":"event_msg","payload":{"type":"user_message","message":"修复设置窗口打不开"}}"#
+
+        XCTAssertEqual(SessionLogParser.parseLine(line)?.kind, .userMessage("修复设置窗口打不开"))
+    }
+
+    func testParsesResponseItemUserMessage() {
+        let line = #"{"timestamp":"2026-06-04T04:25:55.458Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"增加用量趋势"}]}}"#
+
+        XCTAssertEqual(SessionLogParser.parseLine(line)?.kind, .userMessage("增加用量趋势"))
+    }
+
     func testParsesFailureStatus() {
         let line = #"{"timestamp":"2026-06-04T04:25:55.549Z","type":"event_msg","payload":{"type":"anything","status":"failed"}}"#
 

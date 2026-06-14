@@ -41,5 +41,19 @@ final class SessionReplayTests: XCTestCase {
 
         XCTAssertEqual(snapshot.latestUsage?.total.totalTokens, 335)
         XCTAssertEqual(snapshot.latestUsage?.last.totalTokens, 225)
+        XCTAssertEqual(snapshot.usageEvents.count, 2)
+        XCTAssertEqual(snapshot.usageEvents.first?.usage.last.totalTokens, 110)
+        XCTAssertEqual(snapshot.usageEvents.last?.usage.last.totalTokens, 225)
+    }
+
+    func testRebuildsLatestUserMessage() {
+        let lines = [
+            #"{"timestamp":"2026-06-14T12:00:00.000Z","type":"event_msg","payload":{"type":"user_message","message":"先做 README"}}"#,
+            #"{"timestamp":"2026-06-14T12:01:00.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"修复设置窗口打不开"}]}}"#
+        ]
+
+        let snapshot = SessionReplay.rebuild(from: lines)
+
+        XCTAssertEqual(snapshot.latestUserMessage, "修复设置窗口打不开")
     }
 }

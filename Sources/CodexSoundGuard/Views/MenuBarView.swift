@@ -119,7 +119,7 @@ struct MenuBarView: View {
                 SectionHeader(
                     title: "用量趋势",
                     iconName: "chart.xyaxis.line",
-                    trailing: "最近 6 小时"
+                    trailing: trendHeaderValue
                 )
 
                 if monitor.usageTrend.contains(where: { $0.tokens > 0 }) {
@@ -145,7 +145,11 @@ struct MenuBarView: View {
                 } else {
                     VStack(spacing: 6) {
                         ForEach(Array(monitor.sessionUsageRankings.enumerated()), id: \.element.id) { index, summary in
-                            SessionRankRow(rank: index + 1, summary: summary)
+                            SessionRankRow(
+                                rank: index + 1,
+                                summary: summary,
+                                maxTokens: monitor.sessionUsageRankings.map(\.totalTokens).max() ?? summary.totalTokens
+                            )
                         }
                     }
                 }
@@ -198,6 +202,14 @@ struct MenuBarView: View {
         return "最近 \(UsageFormatter.tokenCount(usage.last.totalTokens))"
     }
 
+    private var trendHeaderValue: String {
+        let total = monitor.usageTrend.reduce(0) { $0 + $1.tokens }
+        guard total > 0 else {
+            return "最近 6 小时"
+        }
+        return "6h \(UsageFormatter.tokenCount(total))"
+    }
+
     private var lastOutcomeLabel: String {
         switch monitor.lastOutcome {
         case .completed:
@@ -225,8 +237,7 @@ struct MenuBarView: View {
     }
 
     private func openSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        NSApp.activate(ignoringOtherApps: true)
+        PreferencesWindowController.shared.show(monitor: monitor)
     }
 
 }
@@ -410,11 +421,37 @@ private struct UsageTrendChart: View {
     let points: [UsageTrendPoint]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 7) {
             GeometryReader { proxy in
                 ZStack(alignment: .bottomLeading) {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .fill(.quaternary.opacity(0.45))
+
+                    VStack(spacing: 0) {
+                        Divider().opacity(0.22)
+                        Spacer()
+                        Divider().opacity(0.18)
+                        Spacer()
+                        Divider().opacity(0.22)
+                    }
+                    .padding(.vertical, 8)
+
+                    Path { path in
+                        let chartPoints = linePoints(in: proxy.size)
+                        guard let first = chartPoints.first else {
+                            return
+                        }
+                        path.move(to: CGPoint(x: first.x, y: proxy.size.height - 8))
+                        path.addLine(to: first)
+                        for point in chartPoints.dropFirst() {
+                            path.addLine(to: point)
+                        }
+                        if let last = chartPoints.last {
+                            path.addLine(to: CGPoint(x: last.x, y: proxy.size.height - 8))
+                        }
+                        path.closeSubpath()
+                    }
+                    .fill(Color.primary.opacity(0.08))
 
                     Path { path in
                         let chartPoints = linePoints(in: proxy.size)
@@ -441,6 +478,8 @@ private struct UsageTrendChart: View {
             HStack {
                 Text(points.first.map { Self.hourFormatter.string(from: $0.hourStart) } ?? "--")
                 Spacer()
+                Text("合计 \(UsageFormatter.tokenCount(totalTokens))")
+                Spacer()
                 Text("峰值 \(UsageFormatter.tokenCount(maxTokens))")
                 Spacer()
                 Text(points.last.map { Self.hourFormatter.string(from: $0.hourStart) } ?? "--")
@@ -452,6 +491,10 @@ private struct UsageTrendChart: View {
 
     private var maxTokens: Int {
         max(points.map(\.tokens).max() ?? 0, 1)
+    }
+
+    private var totalTokens: Int {
+        points.reduce(0) { $0 + $1.tokens }
     }
 
     private func linePoints(in size: CGSize) -> [CGPoint] {
@@ -479,35 +522,57 @@ private struct UsageTrendChart: View {
 private struct SessionRankRow: View {
     let rank: Int
     let summary: SessionUsageSummary
+    let maxTokens: Int
 
     var body: some View {
-        HStack(spacing: 9) {
-            Text("\(rank)")
-                .font(.caption.monospacedDigit().weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 18, height: 22)
-                .background(.quaternary.opacity(0.62), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(summary.name)
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Text("最近 \(UsageFormatter.tokenCount(summary.lastTokens)) · \(Self.timeFormatter.string(from: summary.updatedAt))")
-                    .font(.caption2)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 9) {
+                Text("\(rank)")
+                    .font(.caption.monospacedDigit().weight(.semibold))
                     .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 22)
+                    .background(.quaternary.opacity(0.62), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(summary.title)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Text("\(UsageFormatter.tokenCount(summary.lastTokens)) 最近 · \(Self.timeFormatter.string(from: summary.updatedAt)) · \(summary.fileName)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                Spacer(minLength: 8)
+
+                Text(UsageFormatter.tokenCount(summary.totalTokens))
+                    .font(.caption.monospacedDigit().weight(.semibold))
                     .lineLimit(1)
             }
 
-            Spacer(minLength: 8)
-
-            Text(UsageFormatter.tokenCount(summary.totalTokens))
-                .font(.caption.monospacedDigit().weight(.semibold))
-                .lineLimit(1)
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.primary.opacity(0.10))
+                    Capsule()
+                        .fill(Color.primary.opacity(0.62))
+                        .frame(width: proxy.size.width * progress)
+                }
+            }
+            .frame(height: 4)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 7)
         .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+
+    private var progress: Double {
+        guard maxTokens > 0 else {
+            return 0
+        }
+        return max(0.04, min(1, Double(summary.totalTokens) / Double(maxTokens)))
     }
 
     private static let timeFormatter: DateFormatter = {

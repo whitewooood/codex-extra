@@ -50,6 +50,11 @@ public enum SessionLogParser {
             return SessionEvent(kind: .taskStarted, timestamp: timestamp, turnID: turnID)
         case "task_complete":
             return SessionEvent(kind: .taskComplete, timestamp: timestamp, turnID: turnID)
+        case "user_message":
+            if let message = payload["message"] as? String {
+                return SessionEvent(kind: .userMessage(message), timestamp: timestamp, turnID: turnID)
+            }
+            return SessionEvent(kind: .ignored, timestamp: timestamp, turnID: turnID)
         case "token_count":
             if let usage = parseTokenUsageSnapshot(payload: payload) {
                 return SessionEvent(kind: .tokenCount(usage), timestamp: timestamp, turnID: turnID)
@@ -75,10 +80,19 @@ public enum SessionLogParser {
         timestamp: Date?,
         turnID: String?
     ) -> SessionEvent {
-        if payloadType == "message",
-           payload["role"] as? String == "assistant",
-           let message = assistantText(from: payload) {
-            return SessionEvent(kind: .assistantMessage(message), timestamp: timestamp, turnID: turnID)
+        if payloadType == "message" {
+            switch payload["role"] as? String {
+            case "assistant":
+                if let message = messageText(from: payload) {
+                    return SessionEvent(kind: .assistantMessage(message), timestamp: timestamp, turnID: turnID)
+                }
+            case "user":
+                if let message = messageText(from: payload) {
+                    return SessionEvent(kind: .userMessage(message), timestamp: timestamp, turnID: turnID)
+                }
+            default:
+                break
+            }
         }
 
         if payloadType == "function_call_output",
@@ -153,13 +167,14 @@ public enum SessionLogParser {
         )
     }
 
-    private static func assistantText(from payload: [String: Any]) -> String? {
+    private static func messageText(from payload: [String: Any]) -> String? {
         guard let content = payload["content"] as? [[String: Any]] else {
             return nil
         }
 
         let parts = content.compactMap { item -> String? in
-            guard item["type"] as? String == "output_text" else {
+            guard let type = item["type"] as? String,
+                  type == "output_text" || type == "input_text" else {
                 return nil
             }
             return item["text"] as? String

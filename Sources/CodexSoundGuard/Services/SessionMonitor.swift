@@ -22,6 +22,7 @@ final class SessionMonitor: ObservableObject {
     private var partialLines: [String: String] = [:]
     private var turns: [String: TurnAccumulator] = [:]
     private var currentTurnIDByPath: [String: String] = [:]
+    private var latestUserMessageByPath: [String: String] = [:]
     private var cachedDiscoveredFiles: [SessionFileCandidate] = []
     private var lastFullDiscoveryAt: Date?
     private var usageSamples: [UsageSample] = []
@@ -83,9 +84,9 @@ final class SessionMonitor: ObservableObject {
         )
         monitor.usageTrend = Self.previewTrend()
         monitor.sessionUsageRankings = [
-            SessionUsageSummary(path: "/Users/demo/.codex/sessions/app-redesign.jsonl", name: "app-redesign", totalTokens: 207_310, lastTokens: 21_360, updatedAt: now),
-            SessionUsageSummary(path: "/Users/demo/.codex/sessions/readme-polish.jsonl", name: "readme-polish", totalTokens: 128_400, lastTokens: 8_920, updatedAt: now.addingTimeInterval(-28 * 60)),
-            SessionUsageSummary(path: "/Users/demo/.codex/sessions/release-fix.jsonl", name: "release-fix", totalTokens: 76_820, lastTokens: 12_110, updatedAt: now.addingTimeInterval(-73 * 60))
+            SessionUsageSummary(path: "/Users/demo/.codex/sessions/app-redesign.jsonl", title: "重新设计 UI，现在有点花哨，不够高级", fileName: "app-redesign", totalTokens: 207_310, lastTokens: 21_360, updatedAt: now),
+            SessionUsageSummary(path: "/Users/demo/.codex/sessions/readme-polish.jsonl", title: "README 双语并调整为开源项目说明", fileName: "readme-polish", totalTokens: 128_400, lastTokens: 8_920, updatedAt: now.addingTimeInterval(-28 * 60)),
+            SessionUsageSummary(path: "/Users/demo/.codex/sessions/release-fix.jsonl", title: "修复发布资产里的 DMG 和截图问题", fileName: "release-fix", totalTokens: 76_820, lastTokens: 12_110, updatedAt: now.addingTimeInterval(-73 * 60))
         ]
         return monitor
     }
@@ -138,6 +139,7 @@ final class SessionMonitor: ObservableObject {
             offsets.removeValue(forKey: path)
             partialLines.removeValue(forKey: path)
             currentTurnIDByPath.removeValue(forKey: path)
+            latestUserMessageByPath.removeValue(forKey: path)
         }
 
         for url in urls {
@@ -320,6 +322,8 @@ final class SessionMonitor: ObservableObject {
             let turnID = event.turnID ?? UUID().uuidString
             currentTurnIDByPath[path] = turnID
             turns[turnKey(path: path, turnID: turnID)] = TurnAccumulator(startedAt: event.timestamp)
+        case .userMessage(let message):
+            latestUserMessageByPath[path] = message
         case .assistantMessage(let message):
             let key = eventTurnKey(path: path, event: event)
             var turn = turns[key] ?? TurnAccumulator()
@@ -340,7 +344,7 @@ final class SessionMonitor: ObservableObject {
             turns[key] = turn
         case .tokenCount(let usage):
             latestUsage = usage
-            recordUsage(usage, timestamp: event.timestamp ?? Date(), path: path)
+            recordUsage(usage, timestamp: event.timestamp ?? Date(), path: path, title: latestUserMessageByPath[path])
         case .taskComplete:
             let key = eventTurnKey(path: path, event: event)
             let turn = turns[key] ?? TurnAccumulator()
@@ -428,9 +432,18 @@ final class SessionMonitor: ObservableObject {
             currentTurnIDByPath.removeValue(forKey: path)
         }
 
+        if let latestUserMessage = snapshot.latestUserMessage {
+            latestUserMessageByPath[path] = latestUserMessage
+        }
+
         if let latestUsage = snapshot.latestUsage {
             self.latestUsage = latestUsage
-            updateSessionUsage(latestUsage, timestamp: Date(), path: path)
+            let latestTimestamp = snapshot.usageEvents.last?.timestamp ?? Date()
+            updateSessionUsage(latestUsage, timestamp: latestTimestamp, path: path, title: snapshot.latestUserMessage)
+        }
+
+        for usageEvent in snapshot.usageEvents {
+            recordUsage(usageEvent.usage, timestamp: usageEvent.timestamp, path: path, title: snapshot.latestUserMessage)
         }
 
         if !snapshot.turnsByID.isEmpty {
@@ -443,6 +456,7 @@ final class SessionMonitor: ObservableObject {
         partialLines.removeAll()
         turns.removeAll()
         currentTurnIDByPath.removeAll()
+        latestUserMessageByPath.removeAll()
         cachedDiscoveredFiles.removeAll()
         lastFullDiscoveryAt = nil
         usageSamples.removeAll()
@@ -452,7 +466,7 @@ final class SessionMonitor: ObservableObject {
         primed = false
     }
 
-    private func recordUsage(_ usage: TokenUsageSnapshot, timestamp: Date, path: String) {
+    private func recordUsage(_ usage: TokenUsageSnapshot, timestamp: Date, path: String, title: String? = nil) {
         usageSamples.append(UsageSample(timestamp: timestamp, path: path, tokens: max(0, usage.last.totalTokens)))
         if usageSamples.count > maxUsageSamples {
             usageSamples.removeFirst(usageSamples.count - maxUsageSamples)
@@ -461,13 +475,15 @@ final class SessionMonitor: ObservableObject {
         let cutoff = Date().addingTimeInterval(-trendLookback)
         usageSamples.removeAll { $0.timestamp < cutoff }
         usageTrend = buildTrend(from: usageSamples, now: Date())
-        updateSessionUsage(usage, timestamp: timestamp, path: path)
+        updateSessionUsage(usage, timestamp: timestamp, path: path, title: title)
     }
 
-    private func updateSessionUsage(_ usage: TokenUsageSnapshot, timestamp: Date, path: String) {
+    private func updateSessionUsage(_ usage: TokenUsageSnapshot, timestamp: Date, path: String, title: String? = nil) {
+        let existing = sessionUsageByPath[path]
         sessionUsageByPath[path] = SessionUsageSummary(
             path: path,
-            name: sessionDisplayName(path),
+            title: sessionTitle(title, fallbackPath: path, existing: existing?.title),
+            fileName: sessionFileName(path),
             totalTokens: usage.total.totalTokens,
             lastTokens: usage.last.totalTokens,
             updatedAt: timestamp
@@ -504,13 +520,53 @@ final class SessionMonitor: ObservableObject {
         }
     }
 
-    private func sessionDisplayName(_ path: String) -> String {
+    private func sessionFileName(_ path: String) -> String {
         let url = URL(fileURLWithPath: path)
         let fileName = url.deletingPathExtension().lastPathComponent
         if !fileName.isEmpty {
             return fileName
         }
         return url.lastPathComponent
+    }
+
+    private func sessionTitle(_ message: String?, fallbackPath path: String, existing: String?) -> String {
+        if let title = message.flatMap(Self.displayTitle(from:)) {
+            return title
+        }
+
+        if let existing, existing != sessionFileName(path) {
+            return existing
+        }
+
+        return sessionFileName(path)
+    }
+
+    private static func displayTitle(from message: String) -> String? {
+        var text = message
+            .replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let ignoredPrefixes = [
+            "# AGENTS.md instructions",
+            "Codex Security file-review shard",
+            "Filesystem sandboxing defines",
+            "You are Codex"
+        ]
+        guard !ignoredPrefixes.contains(where: { text.hasPrefix($0) }) else {
+            return nil
+        }
+
+        let sentenceTerminators: Set<Character> = ["。", "！", "？", "\n"]
+        if let firstSentenceEnd = text.firstIndex(where: { sentenceTerminators.contains($0) }) {
+            text = String(text[...firstSentenceEnd])
+        }
+
+        if text.count > 42 {
+            text = String(text.prefix(42)).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
+        }
+
+        return text.isEmpty ? nil : text
     }
 
     private static func previewTrend() -> [UsageTrendPoint] {
@@ -573,7 +629,8 @@ struct UsageTrendPoint: Identifiable, Equatable {
 
 struct SessionUsageSummary: Identifiable, Equatable {
     let path: String
-    let name: String
+    let title: String
+    let fileName: String
     let totalTokens: Int
     let lastTokens: Int
     let updatedAt: Date
@@ -596,6 +653,8 @@ private extension SessionEventKind {
             return "识别到开始"
         case .taskComplete:
             return "识别到结束"
+        case .userMessage:
+            return "识别到用户任务"
         case .assistantMessage:
             return "识别到回复"
         case .failureSignal:

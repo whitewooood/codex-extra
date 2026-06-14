@@ -34,11 +34,6 @@ struct CodexSoundGuardApp: App {
             )
         }
         .menuBarExtraStyle(.window)
-
-        Settings {
-            PreferencesView()
-                .environmentObject(monitor)
-        }
     }
 }
 
