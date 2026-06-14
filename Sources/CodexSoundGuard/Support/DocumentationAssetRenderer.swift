@@ -29,6 +29,12 @@ enum DocumentationAssetRenderer {
             size: CGSize(width: 384, height: 330),
             to: outputDirectory.appendingPathComponent("menu-panel-usage.png")
         )
+        try render(
+            PreferencesView()
+                .environmentObject(monitor),
+            size: CGSize(width: 720, height: 500),
+            to: outputDirectory.appendingPathComponent("preferences.png")
+        )
     }
 
     private static func render<V: View>(_ view: V, size: CGSize, to url: URL) throws {

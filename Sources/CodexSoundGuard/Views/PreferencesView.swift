@@ -16,57 +16,105 @@ struct PreferencesView: View {
     @AppStorage(AppDefaults.Key.primaryLimitWarningThreshold) private var primaryThreshold = 20.0
     @AppStorage(AppDefaults.Key.secondaryLimitWarningThreshold) private var secondaryThreshold = 20.0
 
+    @State private var selectedPane = PreferencesPane.general
     @State private var loginItemInstalled = LoginItemManager.isInstalled
     @State private var loginItemMessage: String?
 
     var body: some View {
-        TabView {
-            generalTab
-                .tabItem {
-                    Label("通用", systemImage: "switch.2")
-                }
+        HStack(spacing: 0) {
+            PreferencesSidebar(
+                selectedPane: $selectedPane,
+                isRunning: monitor.isRunning,
+                filesWatched: monitor.filesWatched
+            )
 
-            soundsTab
-                .tabItem {
-                    Label("声音", systemImage: "speaker.wave.2")
-                }
+            Divider()
 
-            limitsTab
-                .tabItem {
-                    Label("阈值", systemImage: "gauge.with.dots.needle.50percent")
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    PreferencesHeader(pane: selectedPane)
+
+                    paneContent
                 }
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(.regularMaterial)
         }
-        .padding(20)
-        .frame(width: 520, height: 420)
+        .frame(width: 720, height: 500)
+        .onAppear {
+            loginItemInstalled = LoginItemManager.isInstalled
+        }
         .onChange(of: monitoringEnabled) { _ in
             monitor.applySettings()
         }
     }
 
-    private var generalTab: some View {
-        Form {
-            Section {
-                Toggle("监听 Codex 本地日志", isOn: $monitoringEnabled)
+    @ViewBuilder
+    private var paneContent: some View {
+        switch selectedPane {
+        case .general:
+            generalPane
+        case .sounds:
+            soundsPane
+        case .limits:
+            limitsPane
+        }
+    }
 
-                Picker("菜单栏显示", selection: $menuBarDisplayMode) {
-                    ForEach(MenuBarDisplayMode.allCases) { mode in
-                        Text(mode.title).tag(mode.rawValue)
-                    }
-                }
-                .pickerStyle(.segmented)
+    private var generalPane: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            PreferenceGroup(title: "运行状态", iconName: "waveform.path.ecg") {
+                PreferenceToggleRow(
+                    title: "监听 Codex 本地日志",
+                    value: monitor.isRunning ? "运行中" : "已暂停",
+                    isOn: $monitoringEnabled
+                )
 
-                Toggle("命令非 0 退出也算失败", isOn: $commandFailureHeuristicEnabled)
-            } header: {
-                Text("菜单栏")
+                PreferenceInfoRow(
+                    title: "当前日志",
+                    value: "\(monitor.filesWatched) 个文件 · \(monitor.recognizedEventCount) 个事件"
+                )
             }
 
-            Section {
-                HStack {
-                    Text(loginItemInstalled ? "登录项已安装" : "登录项未安装")
-                    Spacer()
-                    Button(loginItemInstalled ? "移除登录项" : "安装登录项") {
-                        toggleLoginItem()
+            PreferenceGroup(title: "菜单栏", iconName: "menubar.rectangle") {
+                VStack(alignment: .leading, spacing: 8) {
+                    PreferenceRowHeader(title: "显示模式", value: selectedDisplayMode.title)
+
+                    Picker("菜单栏显示", selection: $menuBarDisplayMode) {
+                        ForEach(MenuBarDisplayMode.allCases) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                }
+
+                PreferenceToggleRow(
+                    title: "命令非 0 退出算失败",
+                    value: commandFailureHeuristicEnabled ? "已开启" : "默认关闭",
+                    isOn: $commandFailureHeuristicEnabled
+                )
+            }
+
+            PreferenceGroup(title: "启动项", iconName: "power") {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("登录时启动")
+                            .font(.callout.weight(.medium))
+                        Text(loginItemInstalled ? "已安装 LaunchAgent" : "未安装 LaunchAgent")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: 16)
+
+                    Button {
+                        toggleLoginItem()
+                    } label: {
+                        Label(loginItemInstalled ? "移除" : "安装", systemImage: loginItemInstalled ? "minus.circle" : "plus.circle")
+                    }
+                    .buttonStyle(.bordered)
                 }
 
                 if let loginItemMessage {
@@ -75,58 +123,85 @@ struct PreferencesView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-            } header: {
-                Text("启动项")
             }
         }
     }
 
-    private var soundsTab: some View {
-        Form {
-            Section {
-                HStack {
-                    Text("音量")
+    private var soundsPane: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            PreferenceGroup(title: "音量", iconName: "speaker.wave.2") {
+                HStack(spacing: 12) {
+                    Image(systemName: "speaker.wave.1")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 18)
                     Slider(value: $volume, in: 0...1)
                     Text("\(Int(volume * 100))%")
-                        .monospacedDigit()
+                        .font(.callout.monospacedDigit().weight(.medium))
                         .foregroundStyle(.secondary)
-                        .frame(width: 44, alignment: .trailing)
+                        .frame(width: 48, alignment: .trailing)
                 }
+                .frame(height: 28)
+            }
 
-                PreferenceSoundRow(
+            PreferenceGroup(title: "提醒声音", iconName: "bell.badge") {
+                SoundPreferenceRow(
                     title: "完成提醒",
+                    subtitle: "任务结束且未识别到失败时播放",
                     isEnabled: $completionSoundEnabled,
                     path: completionSoundPath,
                     testAction: { monitor.testCompletionSound() },
                     chooseAction: { chooseSound(defaultKey: AppDefaults.Key.completionSoundPath) }
                 )
 
-                PreferenceSoundRow(
+                SoundPreferenceRow(
                     title: "失败提醒",
+                    subtitle: "任务结束且识别到失败时播放",
                     isEnabled: $failureSoundEnabled,
                     path: failureSoundPath,
                     testAction: { monitor.testFailureSound() },
                     chooseAction: { chooseSound(defaultKey: AppDefaults.Key.failureSoundPath) }
                 )
-            } header: {
-                Text("本地声音")
             }
         }
     }
 
-    private var limitsTab: some View {
-        Form {
-            Section {
-                ThresholdRow(title: "5 小时窗口", value: $primaryThreshold)
-                ThresholdRow(title: "7 天窗口", value: $secondaryThreshold)
-            } header: {
-                Text("剩余额度提醒阈值")
-            } footer: {
-                Text("当前版本先保存阈值并在设置中统一管理；后续可在此基础上加入低额度声音或系统通知。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+    private var limitsPane: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            PreferenceGroup(title: "剩余额度", iconName: "gauge.with.dots.needle.50percent") {
+                ThresholdPreferenceRow(
+                    title: "5 小时窗口",
+                    value: $primaryThreshold
+                )
+
+                ThresholdPreferenceRow(
+                    title: "7 天窗口",
+                    value: $secondaryThreshold
+                )
+            }
+
+            PreferenceGroup(title: "当前用量", iconName: "chart.bar.xaxis") {
+                if let usage = monitor.latestUsage {
+                    PreferenceInfoRow(
+                        title: "最近 token",
+                        value: UsageFormatter.tokenCount(usage.last.totalTokens)
+                    )
+                    PreferenceInfoRow(
+                        title: "累计 token",
+                        value: UsageFormatter.tokenCount(usage.total.totalTokens)
+                    )
+                    PreferenceInfoRow(
+                        title: "上下文窗口",
+                        value: UsageFormatter.contextWindow(usage.modelContextWindow)
+                    )
+                } else {
+                    PreferenceInfoRow(title: "状态", value: "等待 Codex 用量事件")
+                }
             }
         }
+    }
+
+    private var selectedDisplayMode: MenuBarDisplayMode {
+        MenuBarDisplayMode(rawValue: menuBarDisplayMode) ?? .graphic
     }
 
     private func chooseSound(defaultKey: String) {
@@ -159,44 +234,296 @@ struct PreferencesView: View {
     }
 }
 
-private struct PreferenceSoundRow: View {
+private enum PreferencesPane: String, CaseIterable, Identifiable {
+    case general
+    case sounds
+    case limits
+
+    var id: String {
+        rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .general:
+            return "通用"
+        case .sounds:
+            return "声音"
+        case .limits:
+            return "额度"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .general:
+            return "监听、菜单栏与启动项"
+        case .sounds:
+            return "完成与失败提醒"
+        case .limits:
+            return "阈值与当前用量"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .general:
+            return "switch.2"
+        case .sounds:
+            return "speaker.wave.2"
+        case .limits:
+            return "gauge.with.dots.needle.50percent"
+        }
+    }
+}
+
+private struct PreferencesSidebar: View {
+    @Binding var selectedPane: PreferencesPane
+    let isRunning: Bool
+    let filesWatched: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Codex Monitor")
+                    .font(.headline.weight(.semibold))
+                Text("设置")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 18)
+
+            VStack(spacing: 4) {
+                ForEach(PreferencesPane.allCases) { pane in
+                    SidebarButton(
+                        pane: pane,
+                        isSelected: pane == selectedPane
+                    ) {
+                        selectedPane = pane
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(Color.primary.opacity(isRunning ? 0.68 : 0.28))
+                    .frame(width: 7, height: 7)
+                Text(isRunning ? "监听中" : "已暂停")
+                    .font(.caption.weight(.medium))
+                Spacer()
+                Text("\(filesWatched)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .padding([.horizontal, .bottom], 10)
+        }
+        .frame(width: 190)
+        .background(.bar)
+    }
+}
+
+private struct SidebarButton: View {
+    let pane: PreferencesPane
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: pane.iconName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(pane.title)
+                        .font(.callout.weight(.medium))
+                    Text(pane.subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(isSelected ? .primary : .secondary)
+        .background(selectionBackground, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+
+    private var selectionBackground: Color {
+        isSelected ? Color.accentColor.opacity(0.16) : Color.clear
+    }
+}
+
+private struct PreferencesHeader: View {
+    let pane: PreferencesPane
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: pane.iconName)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 34, height: 34)
+                .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(pane.title)
+                    .font(.title3.weight(.semibold))
+                Text(pane.subtitle)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct PreferenceGroup<Content: View>: View {
     let title: String
+    let iconName: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(title, systemImage: iconName)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 0) {
+                content
+            }
+            .padding(12)
+            .background(.quaternary.opacity(0.42), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(.separator.opacity(0.22), lineWidth: 1)
+            }
+        }
+    }
+}
+
+private struct PreferenceRowHeader: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.callout.weight(.medium))
+            Spacer(minLength: 16)
+            Text(value)
+                .font(.callout.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+    }
+}
+
+private struct PreferenceInfoRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        PreferenceRowHeader(title: title, value: value)
+            .frame(minHeight: 30)
+    }
+}
+
+private struct PreferenceToggleRow: View {
+    let title: String
+    let value: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.callout.weight(.medium))
+                Text(value)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 16)
+            Toggle("", isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+        }
+        .frame(minHeight: 34)
+    }
+}
+
+private struct SoundPreferenceRow: View {
+    let title: String
+    let subtitle: String
     @Binding var isEnabled: Bool
     let path: String
     let testAction: () -> Void
     let chooseAction: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            Toggle(title, isOn: $isEnabled)
+        VStack(spacing: 8) {
+            HStack(alignment: .center, spacing: 12) {
+                Toggle("", isOn: $isEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
 
-            Spacer()
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.callout.weight(.medium))
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
-            Text(URL(fileURLWithPath: path).lastPathComponent)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: 150, alignment: .trailing)
+                Spacer(minLength: 16)
+            }
 
-            Button("试听", action: testAction)
-            Button("选择", action: chooseAction)
+            HStack(spacing: 8) {
+                Text(URL(fileURLWithPath: path).lastPathComponent)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button(action: testAction) {
+                    Label("试听", systemImage: "play.fill")
+                }
+                .disabled(!isEnabled)
+
+                Button(action: chooseAction) {
+                    Label("选择", systemImage: "folder")
+                }
+            }
+            .controlSize(.small)
         }
+        .padding(.vertical, 4)
     }
 }
 
-private struct ThresholdRow: View {
+private struct ThresholdPreferenceRow: View {
     let title: String
     @Binding var value: Double
 
     var body: some View {
-        HStack {
-            Text(title)
-            Slider(value: $value, in: 5...80, step: 5)
-            Text("\(Int(value))%")
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .frame(width: 44, alignment: .trailing)
+        VStack(alignment: .leading, spacing: 8) {
+            PreferenceRowHeader(title: title, value: "\(Int(value))%")
+
+            HStack(spacing: 10) {
+                Slider(value: $value, in: 5...80, step: 5)
+
+                ProgressView(value: value, total: 100)
+                    .frame(width: 74)
+            }
         }
+        .padding(.vertical, 4)
     }
 }

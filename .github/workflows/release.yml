@@ -39,9 +39,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
+          ./script/release_notes.sh "$version" > release-notes.md
           gh release create "$GITHUB_REF_NAME" \
             dist/release/*.zip \
             dist/release/*.dmg \
             dist/release/*.sha256 \
             --title "Codex Monitor $version" \
-            --notes "See CHANGELOG.md for changes. Release artifacts are ad-hoc signed and not notarized."
+            --notes-file release-notes.md

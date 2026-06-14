@@ -16,14 +16,16 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate {
 
     private func makeWindow(monitor: SessionMonitor) -> NSWindow {
         let hostingView = NSHostingView(rootView: PreferencesView().environmentObject(monitor))
+        let size = NSSize(width: 720, height: 500)
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
+            contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Codex Monitor 设置"
         window.contentView = hostingView
+        window.minSize = size
         window.isReleasedWhenClosed = false
         window.center()
         window.delegate = self
