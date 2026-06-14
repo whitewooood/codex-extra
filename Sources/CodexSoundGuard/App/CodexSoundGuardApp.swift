@@ -72,9 +72,9 @@ private struct MenuBarIconLabel: View {
         case .graphic:
             return nil
         case .primaryPercent:
-            return latestUsage?.primaryRateLimit.map { "5h \(UsageFormatter.percent($0.usedPercent))" } ?? "5h --"
+            return latestUsage?.primaryRateLimit.map { "5h \(UsageFormatter.remainingPercent($0))" } ?? "5h --"
         case .secondaryPercent:
-            return latestUsage?.secondaryRateLimit.map { "7d \(UsageFormatter.percent($0.usedPercent))" } ?? "7d --"
+            return latestUsage?.secondaryRateLimit.map { "7d \(UsageFormatter.remainingPercent($0))" } ?? "7d --"
         case .recentTokens:
             return latestUsage.map { UsageFormatter.tokenCount($0.last.totalTokens) } ?? "--"
         }

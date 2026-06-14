@@ -8,11 +8,11 @@ enum UsageFormatter {
         }
 
         if let primaryLimit = usage.primaryRateLimit {
-            return "5h \(percent(primaryLimit.usedPercent))"
+            return "5h \(remainingPercent(primaryLimit))"
         }
 
         if let secondaryLimit = usage.secondaryRateLimit {
-            return "7d \(percent(secondaryLimit.usedPercent))"
+            return "7d \(remainingPercent(secondaryLimit))"
         }
 
         return tokenCount(usage.last.totalTokens)
@@ -37,5 +37,9 @@ enum UsageFormatter {
 
     static func percent(_ value: Double) -> String {
         "\(Int(max(0, min(value, 100)).rounded()))%"
+    }
+
+    static func remainingPercent(_ limit: UsageRateLimit) -> String {
+        percent(100 - max(0, min(limit.usedPercent, 100)))
     }
 }
