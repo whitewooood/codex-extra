@@ -50,19 +50,30 @@ struct PreferencesSidebar: View {
     let filesWatched: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Codex Monitor")
-                    .font(.headline.weight(.semibold))
-                    .lineLimit(1)
-                Text("设置")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(spacing: 10) {
+                CodexUsageMeter(statusIntensity: isRunning ? 0.76 : 0.34, usage: nil)
+                    .frame(width: 28, height: 28)
+                    .padding(7)
+                    .background(InterfaceDesign.elevatedPanel.opacity(0.56), in: RoundedRectangle(cornerRadius: InterfaceDesign.panelRadius, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: InterfaceDesign.panelRadius, style: .continuous)
+                            .strokeBorder(InterfaceDesign.border, lineWidth: 1)
+                    }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Codex Monitor")
+                        .font(.headline.weight(.semibold))
+                        .lineLimit(1)
+                    Text("设置")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 18)
+            .padding(.top, 20)
 
-            VStack(spacing: 2) {
+            VStack(spacing: 4) {
                 ForEach(PreferencesPane.allCases) { pane in
                     SidebarRow(
                         pane: pane,
@@ -79,8 +90,8 @@ struct PreferencesSidebar: View {
             SidebarStatusPill(isRunning: isRunning, filesWatched: filesWatched)
                 .padding([.horizontal, .bottom], 12)
         }
-        .frame(width: 196)
-        .background(.bar)
+        .frame(width: 212)
+        .background(InterfaceDesign.basePanel.opacity(0.38))
     }
 }
 
@@ -93,14 +104,15 @@ private struct SidebarRow: View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: pane.iconName)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 13, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(isSelected ? .primary : .secondary)
-                    .frame(width: 20)
+                    .foregroundStyle(isSelected ? InterfaceDesign.accent : Color.secondary)
+                    .frame(width: 25, height: 25)
+                    .background(isSelected ? InterfaceDesign.accent.opacity(0.08) : Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(pane.title)
-                        .font(.callout.weight(.medium))
+                        .font(.callout.weight(.semibold))
                         .foregroundStyle(.primary)
                     Text(pane.subtitle)
                         .font(.caption2)
@@ -111,14 +123,20 @@ private struct SidebarRow: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 10)
-            .frame(height: 46)
+            .frame(height: 48)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .background {
             if isSelected {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.16))
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: InterfaceDesign.controlRadius, style: .continuous)
+                        .fill(InterfaceDesign.accent.opacity(0.055))
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(InterfaceDesign.accent)
+                        .frame(width: 3, height: 24)
+                        .padding(.leading, 2)
+                }
             }
         }
     }
@@ -131,7 +149,7 @@ private struct SidebarStatusPill: View {
     var body: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(Color.primary.opacity(isRunning ? 0.72 : 0.30))
+                .fill(isRunning ? InterfaceDesign.accent : Color.primary.opacity(0.30))
                 .frame(width: 7, height: 7)
 
             Text(isRunning ? "监听中" : "已暂停")
@@ -144,8 +162,12 @@ private struct SidebarStatusPill: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 10)
-        .frame(height: 30)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .frame(height: 32)
+        .background(InterfaceDesign.elevatedPanel.opacity(0.50), in: RoundedRectangle(cornerRadius: InterfaceDesign.panelRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: InterfaceDesign.panelRadius, style: .continuous)
+                .strokeBorder(InterfaceDesign.border, lineWidth: 1)
+        }
     }
 }
 
@@ -155,7 +177,7 @@ struct PreferencesHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(pane.title)
-                .font(.system(size: 28, weight: .semibold))
+                .font(.system(size: 26, weight: .semibold))
                 .lineLimit(1)
 
             Text(pane.subtitle)
@@ -163,7 +185,7 @@ struct PreferencesHeader: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
-        .padding(.bottom, 2)
+        .padding(.bottom, 4)
     }
 }
 
@@ -172,21 +194,22 @@ struct SettingsSection<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 9) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .padding(.leading, 2)
+                .padding(.leading, 3)
 
             VStack(spacing: 0) {
                 content
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.56), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(InterfaceDesign.elevatedPanel.opacity(0.54), in: RoundedRectangle(cornerRadius: InterfaceDesign.panelRadius, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(.separator.opacity(0.18), lineWidth: 1)
+                RoundedRectangle(cornerRadius: InterfaceDesign.panelRadius, style: .continuous)
+                    .strokeBorder(InterfaceDesign.border, lineWidth: 1)
             }
+            .shadow(color: Color.black.opacity(0.025), radius: 8, x: 0, y: 2)
         }
     }
 }
@@ -198,7 +221,7 @@ struct SettingsControlRow<Control: View>: View {
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
             Text(title)
-                .font(.callout)
+                .font(.callout.weight(.medium))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
 
@@ -219,7 +242,7 @@ struct SettingsPickerRow<Control: View>: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title)
-                    .font(.callout)
+                    .font(.callout.weight(.medium))
 
                 Spacer(minLength: 16)
 
@@ -241,7 +264,7 @@ struct SettingsValueRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
             Text(title)
-                .font(.callout)
+                .font(.callout.weight(.medium))
             Spacer(minLength: 24)
             Text(value)
                 .font(.callout.monospacedDigit())
@@ -261,7 +284,7 @@ struct SettingsToggleRow: View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.callout)
+                    .font(.callout.weight(.medium))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
@@ -276,6 +299,7 @@ struct SettingsToggleRow: View {
             Toggle("", isOn: $isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
+                .tint(InterfaceDesign.accent)
         }
         .settingsRow()
     }
@@ -293,7 +317,7 @@ struct SettingsButtonRow: View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.callout)
+                    .font(.callout.weight(.medium))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
@@ -307,8 +331,12 @@ struct SettingsButtonRow: View {
 
             Button(action: action) {
                 Label(buttonTitle, systemImage: systemImage)
+                    .font(.caption.weight(.semibold))
                     .lineLimit(1)
+                    .padding(.horizontal, 10)
+                    .frame(height: 28)
             }
+            .buttonStyle(SettingsActionButtonStyle())
             .disabled(isDisabled)
         }
         .settingsRow()
@@ -328,7 +356,7 @@ struct SoundSettingsRow: View {
             HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.callout)
+                        .font(.callout.weight(.medium))
                         .lineLimit(1)
                     Text(detail)
                         .font(.caption)
@@ -341,29 +369,39 @@ struct SoundSettingsRow: View {
                 Toggle("", isOn: $isEnabled)
                     .labelsHidden()
                     .toggleStyle(.switch)
+                    .tint(InterfaceDesign.accent)
             }
 
             HStack(spacing: 8) {
-                Text(URL(fileURLWithPath: path).lastPathComponent)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 6) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+
+                    Text(URL(fileURLWithPath: path).lastPathComponent)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .padding(.horizontal, 9)
+                .frame(height: 26)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(InterfaceDesign.basePanel.opacity(0.52), in: RoundedRectangle(cornerRadius: InterfaceDesign.controlRadius, style: .continuous))
 
                 Button(action: testAction) {
                     Image(systemName: "play.fill")
-                        .frame(width: 16, height: 16)
+                        .frame(width: 26, height: 26)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(SettingsIconButtonStyle())
                 .disabled(!isEnabled)
                 .help("试听")
 
                 Button(action: chooseAction) {
                     Image(systemName: "folder")
-                        .frame(width: 16, height: 16)
+                        .frame(width: 26, height: 26)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(SettingsIconButtonStyle())
                 .help("选择声音")
             }
         }
@@ -393,7 +431,8 @@ struct QuietHourPicker: View {
             }
         }
         .labelsHidden()
-        .frame(width: 92)
+        .frame(width: 96)
+        .tint(InterfaceDesign.accent)
     }
 
     private static let timeOptions = Array(stride(from: 0, through: 23 * 60 + 30, by: 30))
@@ -411,7 +450,7 @@ struct ThresholdSettingsRow: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title)
-                    .font(.callout)
+                    .font(.callout.weight(.medium))
 
                 Spacer(minLength: 16)
 
@@ -422,7 +461,9 @@ struct ThresholdSettingsRow: View {
 
             HStack(spacing: 12) {
                 Slider(value: $value, in: 5...80, step: 5)
+                    .tint(InterfaceDesign.accent)
                 ProgressView(value: value, total: 100)
+                    .tint(InterfaceDesign.accent)
                     .frame(width: 82)
             }
         }
@@ -435,13 +476,38 @@ private extension View {
         self
             .padding(.horizontal, 14)
             .padding(.vertical, verticalPadding)
-            .frame(minHeight: 48)
+            .frame(minHeight: 50)
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(alignment: .bottom) {
                 Rectangle()
-                    .fill(.separator.opacity(0.24))
+                    .fill(InterfaceDesign.separator)
                     .frame(height: 1)
                     .padding(.leading, 14)
+            }
+    }
+}
+
+private struct SettingsActionButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.primary)
+            .background(InterfaceDesign.basePanel.opacity(configuration.isPressed ? 0.90 : 0.60), in: RoundedRectangle(cornerRadius: InterfaceDesign.controlRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: InterfaceDesign.controlRadius, style: .continuous)
+                    .strokeBorder(InterfaceDesign.border, lineWidth: 1)
+            }
+    }
+}
+
+private struct SettingsIconButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .background(InterfaceDesign.basePanel.opacity(configuration.isPressed ? 0.92 : 0.58), in: RoundedRectangle(cornerRadius: InterfaceDesign.controlRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: InterfaceDesign.controlRadius, style: .continuous)
+                    .strokeBorder(InterfaceDesign.border, lineWidth: 1)
             }
     }
 }

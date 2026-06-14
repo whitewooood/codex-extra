@@ -20,7 +20,7 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate {
                 .environmentObject(monitor)
                 .environmentObject(updateChecker)
         )
-        let size = NSSize(width: 740, height: 520)
+        let size = NSSize(width: 780, height: 700)
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .miniaturizable],

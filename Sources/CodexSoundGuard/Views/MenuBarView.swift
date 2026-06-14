@@ -10,7 +10,7 @@ struct MenuBarView: View {
     @AppStorage(AppDefaults.Key.sessionsRootPath) private var sessionsRootPath = AppDefaults.sessionsRootPath
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             header
             usagePanel
             trendPanel
@@ -19,8 +19,8 @@ struct MenuBarView: View {
             footer
         }
         .padding(14)
-        .frame(width: 404)
-        .background(.regularMaterial)
+        .frame(width: 408)
+        .background(InterfaceDesign.window.opacity(0.96))
         .controlSize(.small)
         .onAppear {
             updateChecker.checkAutomaticallyIfNeeded()
@@ -28,11 +28,12 @@ struct MenuBarView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Codex Monitor")
-                    .font(.headline.weight(.semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .lineLimit(1)
+
                 Text(statusSubheading)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -41,81 +42,54 @@ struct MenuBarView: View {
 
             Spacer(minLength: 8)
 
-            VStack(alignment: .trailing, spacing: 4) {
-                Toggle("", isOn: $monitoringEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .onChange(of: monitoringEnabled) { _ in
-                        monitor.applySettings()
-                    }
+            StatusBadge(title: monitor.isRunning ? "监听中" : "已暂停", isActive: monitor.isRunning)
 
-                Text(monitor.isRunning ? "监听" : "暂停")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            Toggle("", isOn: $monitoringEnabled)
+                .labelsHidden()
+                .toggleStyle(HeaderToggleStyle())
+                .onChange(of: monitoringEnabled) { _ in
+                    monitor.applySettings()
+                }
         }
     }
 
     private var statusStrip: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 7) {
-                Circle()
-                    .fill(Color.primary.opacity(statusOpacity))
-                    .frame(width: 7, height: 7)
+        Surface(prominence: .quiet) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 7, height: 7)
 
-                Text(statusLine)
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
+                    Text(statusLine)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
 
-                Spacer()
+                    Spacer()
 
-                Text("\(monitor.filesWatched) 日志 · \(monitor.recognizedEventCount) 事件")
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    Text("\(monitor.filesWatched) 日志 · \(monitor.recognizedEventCount) 事件")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    StatusDetailRow(title: "最近", value: monitor.lastStatus)
+                    StatusDetailRow(title: "原因", value: monitor.lastClassificationReason)
+                }
+                .help(monitor.lastEventStatus)
             }
-
-            Text(monitor.lastStatus)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-
-            Text("原因：\(monitor.lastClassificationReason)")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-
-            Text(monitor.lastEventStatus)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(.separator.opacity(0.32), lineWidth: 1)
         }
     }
 
     private var usagePanel: some View {
-        Surface {
-            VStack(alignment: .leading, spacing: 11) {
-                SectionHeader(
-                    title: "剩余额度",
-                    iconName: "gauge.with.dots.needle.50percent",
-                    trailing: usageHeaderValue
-                )
+        Surface(prominence: .overview) {
+            VStack(alignment: .leading, spacing: 12) {
+                PrimaryUsageSummary(usage: monitor.latestUsage)
 
                 if let usage = monitor.latestUsage {
+                    UsageSummaryPills(usage: usage)
                     RemainingLimitStack(usage: usage)
-
-                    TokenSummaryRow(usage: usage)
                 } else {
                     EmptyStateLine(iconName: "hourglass", text: "等待用量数据")
                 }
@@ -198,23 +172,16 @@ struct MenuBarView: View {
             .buttonStyle(QuietIconButtonStyle(role: .destructive))
             .help("退出")
         }
-        .padding(.top, 1)
+        .padding(.top, 2)
     }
 
     private var statusSubheading: String {
-        monitor.isRunning ? "用量与提醒" : "已暂停"
+        monitor.isRunning ? "本地用量与任务提醒" : "监听已暂停"
     }
 
     private var statusLine: String {
         let prefix = monitor.isRunning ? "监听中" : "已暂停"
         return "\(prefix) · \(lastOutcomeLabel)"
-    }
-
-    private var usageHeaderValue: String {
-        guard let usage = monitor.latestUsage else {
-            return "--"
-        }
-        return "最近 \(UsageFormatter.tokenCount(usage.last.totalTokens))"
     }
 
     private var trendHeaderValue: String {
@@ -236,18 +203,18 @@ struct MenuBarView: View {
         }
     }
 
-    private var statusOpacity: Double {
+    private var statusColor: Color {
         guard monitor.isRunning else {
-            return 0.30
+            return Color.primary.opacity(0.30)
         }
 
         switch monitor.lastOutcome {
         case .completed:
-            return 0.68
+            return InterfaceDesign.accent
         case .failed:
-            return 1.0
+            return Color.red.opacity(0.82)
         case nil:
-            return 0.52
+            return Color.primary.opacity(0.48)
         }
     }
 

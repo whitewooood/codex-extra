@@ -39,22 +39,21 @@ struct PreferencesView: View {
                 filesWatched: monitor.filesWatched
             )
 
-            Divider()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 24) {
                     PreferencesHeader(pane: selectedPane)
 
                     paneContent
                 }
-                .frame(maxWidth: 520, alignment: .leading)
-                .padding(.horizontal, 34)
-                .padding(.vertical, 30)
+                .frame(maxWidth: 548, alignment: .leading)
+                .padding(.horizontal, 38)
+                .padding(.vertical, 32)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background(InterfaceDesign.window)
         }
-        .frame(width: 740, height: 520)
+        .frame(width: 780, height: 700)
+        .tint(InterfaceDesign.accent)
         .onAppear {
             loginItemStatus = loginItemStatusProvider()
         }
@@ -102,7 +101,7 @@ struct PreferencesView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
-                    .frame(width: 288)
+                    .frame(width: 320)
                 }
 
                 SettingsToggleRow(

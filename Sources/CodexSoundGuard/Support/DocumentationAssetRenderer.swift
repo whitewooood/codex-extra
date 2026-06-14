@@ -20,23 +20,23 @@ enum DocumentationAssetRenderer {
             MenuBarView()
                 .environmentObject(monitor)
                 .environmentObject(updateChecker),
-            size: CGSize(width: 384, height: 640),
+            size: CGSize(width: 408, height: 660),
             to: outputDirectory.appendingPathComponent("menu-panel.png")
         )
         try render(
             MenuBarView()
                 .environmentObject(monitor)
                 .environmentObject(updateChecker)
-                .frame(width: 384, height: 330, alignment: .top)
+                .frame(width: 408, height: 330, alignment: .top)
                 .clipped(),
-            size: CGSize(width: 384, height: 330),
+            size: CGSize(width: 408, height: 330),
             to: outputDirectory.appendingPathComponent("menu-panel-usage.png")
         )
         try render(
             PreferencesView(loginItemStatusProvider: { .disabled })
                 .environmentObject(monitor)
                 .environmentObject(updateChecker),
-            size: CGSize(width: 740, height: 520),
+            size: CGSize(width: 780, height: 700),
             to: outputDirectory.appendingPathComponent("preferences.png")
         )
     }
