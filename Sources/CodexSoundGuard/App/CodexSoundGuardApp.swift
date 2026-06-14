@@ -7,6 +7,7 @@ import SwiftUI
 struct CodexSoundGuardApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var monitor: SessionMonitor
+    @StateObject private var updateChecker: UpdateChecker
 
     init() {
         AppDefaults.register()
@@ -20,12 +21,14 @@ struct CodexSoundGuardApp: App {
             }
         }
         _monitor = StateObject(wrappedValue: SessionMonitor())
+        _updateChecker = StateObject(wrappedValue: UpdateChecker.shared)
     }
 
     var body: some Scene {
         MenuBarExtra {
             MenuBarView()
                 .environmentObject(monitor)
+                .environmentObject(updateChecker)
         } label: {
             MenuBarIconLabel(
                 isRunning: monitor.isRunning,
@@ -34,6 +37,13 @@ struct CodexSoundGuardApp: App {
             )
         }
         .menuBarExtraStyle(.window)
+        .commands {
+            CommandGroup(after: .appInfo) {
+                Button("检查更新...") {
+                    updateChecker.checkManually()
+                }
+            }
+        }
     }
 }
 
@@ -90,5 +100,8 @@ private struct MenuBarIconLabel: View {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        Task { @MainActor in
+            UpdateChecker.shared.checkAutomaticallyIfNeeded()
+        }
     }
 }

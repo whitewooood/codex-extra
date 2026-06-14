@@ -7,6 +7,7 @@ Codex Monitor 是一个本地工具。
 - `~/.codex/sessions` 下的 Codex Desktop 会话日志。
 - 你选择作为提示音的本地音频文件。
 - 保存在 `UserDefaults` 中的用户偏好设置。
+- 检查更新时，请求 GitHub Releases latest API 获取最新版本号和发布说明。
 
 ## 它不会做什么
 
@@ -14,6 +15,7 @@ Codex Monitor 是一个本地工具。
 - 不调用云端账单或用量 API。
 - 不发送遥测数据。
 - 不修改 Codex Desktop 设置。
+- 不自动下载或安装更新。
 
 ## 重要说明
 

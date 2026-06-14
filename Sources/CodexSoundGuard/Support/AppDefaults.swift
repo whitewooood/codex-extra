@@ -16,6 +16,9 @@ enum AppDefaults {
         static let quietHoursEnabled = "quietHoursEnabled"
         static let quietHoursStartMinute = "quietHoursStartMinute"
         static let quietHoursEndMinute = "quietHoursEndMinute"
+        static let automaticUpdateChecksEnabled = "automaticUpdateChecksEnabled"
+        static let lastUpdateCheckAt = "lastUpdateCheckAt"
+        static let ignoredUpdateVersion = "ignoredUpdateVersion"
     }
 
     static var sessionsRootPath: String {
@@ -59,7 +62,10 @@ enum AppDefaults {
             Key.secondaryLimitWarningThreshold: 20.0,
             Key.quietHoursEnabled: false,
             Key.quietHoursStartMinute: 22 * 60,
-            Key.quietHoursEndMinute: 8 * 60
+            Key.quietHoursEndMinute: 8 * 60,
+            Key.automaticUpdateChecksEnabled: true,
+            Key.lastUpdateCheckAt: 0.0,
+            Key.ignoredUpdateVersion: ""
         ])
     }
 }

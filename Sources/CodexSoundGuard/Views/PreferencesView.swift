@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct PreferencesView: View {
     @EnvironmentObject private var monitor: SessionMonitor
+    @EnvironmentObject private var updateChecker: UpdateChecker
 
     @AppStorage(AppDefaults.Key.monitoringEnabled) private var monitoringEnabled = true
     @AppStorage(AppDefaults.Key.completionSoundEnabled) private var completionSoundEnabled = true
@@ -18,6 +19,7 @@ struct PreferencesView: View {
     @AppStorage(AppDefaults.Key.quietHoursEnabled) private var quietHoursEnabled = false
     @AppStorage(AppDefaults.Key.quietHoursStartMinute) private var quietHoursStartMinute = 22 * 60
     @AppStorage(AppDefaults.Key.quietHoursEndMinute) private var quietHoursEndMinute = 8 * 60
+    @AppStorage(AppDefaults.Key.automaticUpdateChecksEnabled) private var automaticUpdateChecksEnabled = true
 
     @State private var selectedPane = PreferencesPane.general
     @State private var loginItemInstalled = LoginItemManager.isInstalled
@@ -113,6 +115,24 @@ struct PreferencesView: View {
 
                 if let loginItemMessage {
                     SettingsFootnote(text: loginItemMessage)
+                }
+            }
+
+            SettingsSection(title: "更新") {
+                SettingsToggleRow(
+                    title: "自动检查更新",
+                    detail: automaticUpdateChecksEnabled ? "每天最多提醒一次" : "仅手动检查",
+                    isOn: $automaticUpdateChecksEnabled
+                )
+
+                SettingsButtonRow(
+                    title: "当前版本",
+                    detail: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "--",
+                    buttonTitle: updateChecker.isChecking ? "检查中" : "检查更新",
+                    systemImage: "arrow.down.circle",
+                    isDisabled: updateChecker.isChecking
+                ) {
+                    updateChecker.checkManually()
                 }
             }
         }
@@ -521,6 +541,40 @@ private struct SettingsToggleRow: View {
             Toggle("", isOn: $isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
+        }
+        .settingsRow()
+    }
+}
+
+private struct SettingsButtonRow: View {
+    let title: String
+    let detail: String
+    let buttonTitle: String
+    let systemImage: String
+    let isDisabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 24)
+
+            Button(action: action) {
+                Label(buttonTitle, systemImage: systemImage)
+                    .lineLimit(1)
+            }
+            .disabled(isDisabled)
         }
         .settingsRow()
     }

@@ -4,6 +4,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @EnvironmentObject private var monitor: SessionMonitor
+    @EnvironmentObject private var updateChecker: UpdateChecker
 
     @AppStorage(AppDefaults.Key.monitoringEnabled) private var monitoringEnabled = true
     @AppStorage(AppDefaults.Key.sessionsRootPath) private var sessionsRootPath = AppDefaults.sessionsRootPath
@@ -21,6 +22,9 @@ struct MenuBarView: View {
         .frame(width: 404)
         .background(.regularMaterial)
         .controlSize(.small)
+        .onAppear {
+            updateChecker.checkAutomaticallyIfNeeded()
+        }
     }
 
     private var header: some View {
@@ -171,6 +175,11 @@ struct MenuBarView: View {
                 openSettings()
             }
 
+            FooterAction(title: "更新", iconName: updateChecker.isChecking ? "arrow.triangle.2.circlepath" : "arrow.down.circle") {
+                updateChecker.checkManually()
+            }
+            .disabled(updateChecker.isChecking)
+
             Spacer()
 
             Button {
@@ -237,7 +246,7 @@ struct MenuBarView: View {
     }
 
     private func openSettings() {
-        PreferencesWindowController.shared.show(monitor: monitor)
+        PreferencesWindowController.shared.show(monitor: monitor, updateChecker: updateChecker)
     }
 
 }
