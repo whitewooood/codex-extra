@@ -177,6 +177,19 @@ create_readwrite_dmg() {
   return 1
 }
 
+detach_dmg() {
+  local target="$1"
+  local attempt
+  for attempt in 1 2 3 4; do
+    if /usr/bin/hdiutil detach "$target" >/dev/null; then
+      return 0
+    fi
+    sleep "$attempt"
+  done
+
+  /usr/bin/hdiutil detach -force "$target" >/dev/null
+}
+
 rm -rf "$RELEASE_DIR"
 mkdir -p "$APP_MACOS"
 
@@ -213,10 +226,10 @@ set_dmg_finder_layout "$mount_dir"
 /bin/rm -rf "$mount_dir/.fseventsd" "$mount_dir/.Trashes"
 /bin/sync
 if [[ -n "$device" ]]; then
-  /usr/bin/hdiutil detach "$device" >/dev/null
+  detach_dmg "$device"
   device=""
 else
-  /usr/bin/hdiutil detach "$mount_dir" >/dev/null
+  detach_dmg "$mount_dir"
 fi
 /bin/rmdir "$mount_dir"
 mount_dir=""
