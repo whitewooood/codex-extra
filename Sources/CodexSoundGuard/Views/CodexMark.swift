@@ -71,44 +71,39 @@ struct CodexUsageMeter: View {
         image.lockFocus()
         defer { image.unlockFocus() }
 
-        drawShell()
+        drawAnchor()
 
         drawBar(
-            rect: CGRect(x: 5.0, y: 10.45, width: 10.9, height: 2.45),
+            rect: CGRect(x: 5.25, y: 10.75, width: 12.35, height: 2.65),
             usedPercent: usage?.primaryRateLimit?.usedPercent,
-            fillAlpha: 0.88
+            fillAlpha: 0.90
         )
         drawBar(
-            rect: CGRect(x: 5.0, y: 5.2, width: 10.9, height: 2.45),
+            rect: CGRect(x: 5.25, y: 5.0, width: 12.35, height: 2.65),
             usedPercent: usage?.secondaryRateLimit?.usedPercent,
             fillAlpha: 0.72
         )
 
-        drawStatusDot(in: CGRect(x: 16.35, y: 1.55, width: 4.55, height: 4.55))
+        drawStatusDot(in: CGRect(x: 17.35, y: 1.25, width: 4.3, height: 4.3))
 
         return image
     }
 
-    private func drawShell() {
-        let bodyRect = CGRect(x: 0.95, y: 1.55, width: 17.35, height: 14.9)
-        let bodyPath = NSBezierPath(roundedRect: bodyRect, xRadius: 4.8, yRadius: 4.8)
-        NSColor.black.withAlphaComponent(0.06).setFill()
-        bodyPath.fill()
-        NSColor.black.withAlphaComponent(0.48).setStroke()
-        bodyPath.lineWidth = 1.05
-        bodyPath.stroke()
+    private func drawAnchor() {
+        let anchorPath = NSBezierPath(roundedRect: CGRect(x: 1.75, y: 4.55, width: 2.55, height: 9.7), xRadius: 1.25, yRadius: 1.25)
+        NSColor.black.withAlphaComponent(0.46).setFill()
+        anchorPath.fill()
 
-        let spineRect = CGRect(x: 3.05, y: 5.0, width: 1.9, height: 7.95)
-        let spinePath = NSBezierPath(roundedRect: spineRect, xRadius: 0.95, yRadius: 0.95)
-        NSColor.black.withAlphaComponent(0.32).setFill()
-        spinePath.fill()
+        let topNode = NSBezierPath(ovalIn: CGRect(x: 1.35, y: 11.15, width: 3.35, height: 3.35))
+        NSColor.black.withAlphaComponent(0.74).setFill()
+        topNode.fill()
+
+        let bottomNode = NSBezierPath(ovalIn: CGRect(x: 1.35, y: 4.15, width: 3.35, height: 3.35))
+        NSColor.black.withAlphaComponent(0.58).setFill()
+        bottomNode.fill()
     }
 
     private func drawStatusDot(in rect: CGRect) {
-        let ringPath = NSBezierPath(ovalIn: rect.insetBy(dx: -0.9, dy: -0.9))
-        NSColor.black.withAlphaComponent(0.16).setFill()
-        ringPath.fill()
-
         let dotPath = NSBezierPath(ovalIn: rect)
         NSColor.black.withAlphaComponent(statusIntensity).setFill()
         dotPath.fill()
