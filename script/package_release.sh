@@ -24,6 +24,7 @@ DMG_PATH="$RELEASE_DIR/$DMG_NAME"
 ZIP_CHECKSUM_PATH="$ZIP_PATH.sha256"
 DMG_CHECKSUM_PATH="$DMG_PATH.sha256"
 DMG_ROOT="$RELEASE_DIR/dmg-root"
+DMG_RW_PATH="$RELEASE_DIR/$ARTIFACT_BASENAME-rw.dmg"
 
 write_info_plist() {
   cat >"$INFO_PLIST" <<PLIST
@@ -56,6 +57,84 @@ write_info_plist() {
 PLIST
 }
 
+write_dmg_background() {
+  local output_path="$1"
+  /usr/bin/swift - "$output_path" <<'SWIFT'
+import AppKit
+import Foundation
+
+let output = URL(fileURLWithPath: CommandLine.arguments[1])
+let size = NSSize(width: 640, height: 400)
+let image = NSImage(size: size)
+image.lockFocus()
+
+NSColor(calibratedWhite: 0.965, alpha: 1).setFill()
+NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
+
+let titleAttributes: [NSAttributedString.Key: Any] = [
+    .font: NSFont.systemFont(ofSize: 24, weight: .semibold),
+    .foregroundColor: NSColor.labelColor
+]
+let bodyAttributes: [NSAttributedString.Key: Any] = [
+    .font: NSFont.systemFont(ofSize: 13, weight: .medium),
+    .foregroundColor: NSColor.secondaryLabelColor
+]
+
+"Codex Monitor".draw(at: NSPoint(x: 40, y: 322), withAttributes: titleAttributes)
+"拖拽到 Applications 以安装".draw(at: NSPoint(x: 40, y: 298), withAttributes: bodyAttributes)
+"Drag to Applications to install".draw(at: NSPoint(x: 40, y: 276), withAttributes: bodyAttributes)
+
+let arrowPath = NSBezierPath()
+arrowPath.move(to: NSPoint(x: 246, y: 196))
+arrowPath.line(to: NSPoint(x: 394, y: 196))
+arrowPath.move(to: NSPoint(x: 374, y: 214))
+arrowPath.line(to: NSPoint(x: 396, y: 196))
+arrowPath.line(to: NSPoint(x: 374, y: 178))
+NSColor.secondaryLabelColor.withAlphaComponent(0.65).setStroke()
+arrowPath.lineWidth = 4
+arrowPath.lineCapStyle = .round
+arrowPath.lineJoinStyle = .round
+arrowPath.stroke()
+
+let hintAttributes: [NSAttributedString.Key: Any] = [
+    .font: NSFont.systemFont(ofSize: 12, weight: .regular),
+    .foregroundColor: NSColor.tertiaryLabelColor
+]
+"本工具只读取本机 Codex 日志，不上传数据".draw(at: NSPoint(x: 40, y: 44), withAttributes: hintAttributes)
+
+image.unlockFocus()
+
+guard let tiff = image.tiffRepresentation,
+      let bitmap = NSBitmapImageRep(data: tiff),
+      let png = bitmap.representation(using: .png, properties: [:]) else {
+    exit(1)
+}
+try png.write(to: output)
+SWIFT
+}
+
+set_dmg_finder_layout() {
+  local mount_dir="$1"
+  /usr/bin/osascript <<OSA >/dev/null 2>&1 || true
+tell application "Finder"
+  tell disk "$APP_DISPLAY_NAME"
+    open
+    set current view of container window to icon view
+    set toolbar visible of container window to false
+    set statusbar visible of container window to false
+    set the bounds of container window to {100, 100, 740, 500}
+    set opts to the icon view options of container window
+    set arrangement of opts to not arranged
+    set icon size of opts to 96
+    set background picture of opts to file ".background:background.png"
+    set position of item "$APP_DISPLAY_NAME.app" of container window to {170, 205}
+    set position of item "Applications" of container window to {470, 205}
+    close
+  end tell
+end tell
+OSA
+}
+
 rm -rf "$RELEASE_DIR"
 mkdir -p "$APP_MACOS"
 
@@ -75,16 +154,34 @@ xattr -cr "$APP_BUNDLE" >/dev/null 2>&1 || true
 )
 
 mkdir -p "$DMG_ROOT"
+mkdir -p "$DMG_ROOT/.background"
 cp -R "$APP_BUNDLE" "$DMG_ROOT/"
 ln -s /Applications "$DMG_ROOT/Applications"
+write_dmg_background "$DMG_ROOT/.background/background.png"
+
 /usr/bin/hdiutil create \
   -volname "$APP_DISPLAY_NAME" \
   -srcfolder "$DMG_ROOT" \
   -ov \
-  -format UDZO \
-  "$DMG_PATH" >/dev/null
+  -format UDRW \
+  -fs HFS+ \
+  "$DMG_RW_PATH" >/dev/null
+
+mount_dir="$(mktemp -d /tmp/codex-monitor-dmg.XXXXXX)"
+device="$(/usr/bin/hdiutil attach -readwrite -noverify -noautoopen -mountpoint "$mount_dir" "$DMG_RW_PATH" | awk '/Apple_HFS/ { print $1; exit }')"
+set_dmg_finder_layout "$mount_dir"
+/bin/rm -rf "$mount_dir/.fseventsd" "$mount_dir/.Trashes"
+/bin/sync
+if [[ -n "$device" ]]; then
+  /usr/bin/hdiutil detach "$device" >/dev/null
+else
+  /usr/bin/hdiutil detach "$mount_dir" >/dev/null
+fi
+/bin/rmdir "$mount_dir"
+
+/usr/bin/hdiutil convert "$DMG_RW_PATH" -format UDZO -o "$DMG_PATH" >/dev/null
 /usr/bin/shasum -a 256 "$DMG_PATH" >"$DMG_CHECKSUM_PATH"
-rm -rf "$DMG_ROOT"
+rm -rf "$DMG_ROOT" "$DMG_RW_PATH"
 
 echo "release artifact: $ZIP_PATH"
 echo "release artifact: $DMG_PATH"

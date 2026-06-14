@@ -1,30 +1,24 @@
 import AppKit
 import CodexSoundGuardCore
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct MenuBarView: View {
     @EnvironmentObject private var monitor: SessionMonitor
 
     @AppStorage(AppDefaults.Key.monitoringEnabled) private var monitoringEnabled = true
-    @AppStorage(AppDefaults.Key.completionSoundEnabled) private var completionSoundEnabled = true
-    @AppStorage(AppDefaults.Key.failureSoundEnabled) private var failureSoundEnabled = true
-    @AppStorage(AppDefaults.Key.commandFailureHeuristicEnabled) private var commandFailureHeuristicEnabled = false
-    @AppStorage(AppDefaults.Key.completionSoundPath) private var completionSoundPath = AppDefaults.defaultCompletionSoundPath
-    @AppStorage(AppDefaults.Key.failureSoundPath) private var failureSoundPath = AppDefaults.defaultFailureSoundPath
     @AppStorage(AppDefaults.Key.sessionsRootPath) private var sessionsRootPath = AppDefaults.sessionsRootPath
-    @AppStorage(AppDefaults.Key.volume) private var volume = 0.8
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
             usagePanel
+            trendPanel
+            sessionRankingPanel
             statusStrip
-            soundPanel
             footer
         }
         .padding(14)
-        .frame(width: 384)
+        .frame(width: 404)
         .background(.regularMaterial)
         .controlSize(.small)
     }
@@ -119,50 +113,42 @@ struct MenuBarView: View {
         }
     }
 
-    private var soundPanel: some View {
+    private var trendPanel: some View {
+        Surface {
+            VStack(alignment: .leading, spacing: 11) {
+                SectionHeader(
+                    title: "用量趋势",
+                    iconName: "chart.xyaxis.line",
+                    trailing: "最近 6 小时"
+                )
+
+                if monitor.usageTrend.contains(where: { $0.tokens > 0 }) {
+                    UsageTrendChart(points: monitor.usageTrend)
+                } else {
+                    EmptyStateLine(iconName: "chart.line.uptrend.xyaxis", text: "等待最近几小时的 token 用量")
+                }
+            }
+        }
+    }
+
+    private var sessionRankingPanel: some View {
         Surface {
             VStack(alignment: .leading, spacing: 10) {
                 SectionHeader(
-                    title: "声音提醒",
-                    iconName: "speaker.wave.2",
-                    trailing: "\(Int(volume * 100))%"
+                    title: "会话排行",
+                    iconName: "list.number",
+                    trailing: "Top \(monitor.sessionUsageRankings.count)"
                 )
 
-                Slider(value: $volume, in: 0...1)
-
-                VStack(spacing: 6) {
-                    SoundRow(
-                        title: "完成",
-                        iconName: "checkmark",
-                        isEnabled: $completionSoundEnabled,
-                        soundName: shortName(completionSoundPath),
-                        testLabel: "试听完成提醒",
-                        chooseLabel: "选择完成提醒声音",
-                        testAction: { monitor.testCompletionSound() },
-                        chooseAction: { chooseSound(defaultKey: AppDefaults.Key.completionSoundPath) }
-                    )
-
-                    SoundRow(
-                        title: "失败",
-                        iconName: "xmark",
-                        isEnabled: $failureSoundEnabled,
-                        soundName: shortName(failureSoundPath),
-                        testLabel: "试听失败提醒",
-                        chooseLabel: "选择失败提醒声音",
-                        testAction: { monitor.testFailureSound() },
-                        chooseAction: { chooseSound(defaultKey: AppDefaults.Key.failureSoundPath) }
-                    )
+                if monitor.sessionUsageRankings.isEmpty {
+                    EmptyStateLine(iconName: "doc.text.magnifyingglass", text: "等待 session 用量数据")
+                } else {
+                    VStack(spacing: 6) {
+                        ForEach(Array(monitor.sessionUsageRankings.enumerated()), id: \.element.id) { index, summary in
+                            SessionRankRow(rank: index + 1, summary: summary)
+                        }
+                    }
                 }
-
-                Divider()
-                    .padding(.vertical, 1)
-
-                Toggle(isOn: $commandFailureHeuristicEnabled) {
-                    Text("命令非 0 退出也算失败")
-                        .font(.caption.weight(.semibold))
-                        .lineLimit(1)
-                }
-                .toggleStyle(.switch)
             }
         }
     }
@@ -175,6 +161,10 @@ struct MenuBarView: View {
 
             FooterAction(title: "目录", iconName: "terminal") {
                 NSWorkspace.shared.open(URL(fileURLWithPath: AppDefaults.codexHomePath))
+            }
+
+            FooterAction(title: "设置", iconName: "gearshape") {
+                openSettings()
             }
 
             Spacer()
@@ -234,21 +224,9 @@ struct MenuBarView: View {
         }
     }
 
-    private func chooseSound(defaultKey: String) {
-        let panel = NSOpenPanel()
-        panel.title = "选择提醒声音"
-        panel.prompt = "选择"
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.allowedContentTypes = [.audio]
-
-        if panel.runModal() == .OK, let url = panel.url {
-            UserDefaults.standard.set(url.path, forKey: defaultKey)
-        }
-    }
-
-    private func shortName(_ path: String) -> String {
-        URL(fileURLWithPath: path).lastPathComponent
+    private func openSettings() {
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
 }
@@ -428,64 +406,115 @@ private struct TokenMetric: View {
     }
 }
 
-private struct SoundRow: View {
-    let title: String
-    let iconName: String
-    @Binding var isEnabled: Bool
-    let soundName: String
-    let testLabel: String
-    let chooseLabel: String
-    let testAction: () -> Void
-    let chooseAction: () -> Void
+private struct UsageTrendChart: View {
+    let points: [UsageTrendPoint]
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: iconName)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(isEnabled ? .primary : .secondary)
-                .frame(width: 22, height: 22)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        VStack(alignment: .leading, spacing: 6) {
+            GeometryReader { proxy in
+                ZStack(alignment: .bottomLeading) {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(.quaternary.opacity(0.45))
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
+                    Path { path in
+                        let chartPoints = linePoints(in: proxy.size)
+                        guard let first = chartPoints.first else {
+                            return
+                        }
+                        path.move(to: first)
+                        for point in chartPoints.dropFirst() {
+                            path.addLine(to: point)
+                        }
+                    }
+                    .stroke(Color.primary.opacity(0.78), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+
+                    ForEach(Array(linePoints(in: proxy.size).enumerated()), id: \.offset) { _, point in
+                        Circle()
+                            .fill(Color.primary.opacity(0.86))
+                            .frame(width: 4, height: 4)
+                            .position(point)
+                    }
+                }
+            }
+            .frame(height: 76)
+
+            HStack {
+                Text(points.first.map { Self.hourFormatter.string(from: $0.hourStart) } ?? "--")
+                Spacer()
+                Text("峰值 \(UsageFormatter.tokenCount(maxTokens))")
+                Spacer()
+                Text(points.last.map { Self.hourFormatter.string(from: $0.hourStart) } ?? "--")
+            }
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private var maxTokens: Int {
+        max(points.map(\.tokens).max() ?? 0, 1)
+    }
+
+    private func linePoints(in size: CGSize) -> [CGPoint] {
+        guard points.count > 1 else {
+            return []
+        }
+
+        let maxValue = Double(maxTokens)
+        let horizontalStep = size.width / CGFloat(points.count - 1)
+        return points.enumerated().map { index, point in
+            let x = CGFloat(index) * horizontalStep
+            let progress = CGFloat(Double(point.tokens) / maxValue)
+            let y = size.height - max(3, min(size.height - 3, progress * (size.height - 12) + 6))
+            return CGPoint(x: x, y: y)
+        }
+    }
+
+    private static let hourFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+}
+
+private struct SessionRankRow: View {
+    let rank: Int
+    let summary: SessionUsageSummary
+
+    var body: some View {
+        HStack(spacing: 9) {
+            Text("\(rank)")
+                .font(.caption.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 18, height: 22)
+                .background(.quaternary.opacity(0.62), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(summary.name)
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
-                Text(soundName)
+                    .truncationMode(.middle)
+                Text("最近 \(UsageFormatter.tokenCount(summary.lastTokens)) · \(Self.timeFormatter.string(from: summary.updatedAt))")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .truncationMode(.middle)
             }
 
             Spacer(minLength: 8)
 
-            Toggle("", isOn: $isEnabled)
-                .labelsHidden()
-                .toggleStyle(.switch)
-
-            SoundIconButton(iconName: "play.fill", help: testLabel, action: testAction)
-            SoundIconButton(iconName: "music.note.list", help: chooseLabel, action: chooseAction)
+            Text(UsageFormatter.tokenCount(summary.totalTokens))
+                .font(.caption.monospacedDigit().weight(.semibold))
+                .lineLimit(1)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 7)
         .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
-}
 
-private struct SoundIconButton: View {
-    let iconName: String
-    let help: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: iconName)
-                .font(.system(size: 10, weight: .semibold))
-                .frame(width: 22, height: 22)
-        }
-        .buttonStyle(QuietIconButtonStyle())
-        .help(help)
-    }
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
 }
 
 private struct FooterAction: View {

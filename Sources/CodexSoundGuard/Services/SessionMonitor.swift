@@ -12,6 +12,8 @@ final class SessionMonitor: ObservableObject {
     @Published private(set) var lastEventStatus = "尚未识别到 Codex 事件"
     @Published private(set) var recognizedEventCount = 0
     @Published private(set) var latestUsage: TokenUsageSnapshot?
+    @Published private(set) var usageTrend: [UsageTrendPoint] = []
+    @Published private(set) var sessionUsageRankings: [SessionUsageSummary] = []
 
     private let soundPlayer = SoundPlayer()
     private let logger = Logger(subsystem: "com.whitewood.codex-monitor", category: "monitor")
@@ -22,6 +24,8 @@ final class SessionMonitor: ObservableObject {
     private var currentTurnIDByPath: [String: String] = [:]
     private var cachedDiscoveredFiles: [SessionFileCandidate] = []
     private var lastFullDiscoveryAt: Date?
+    private var usageSamples: [UsageSample] = []
+    private var sessionUsageByPath: [String: SessionUsageSummary] = [:]
     private var primed = false
     private let startedAt = Date()
     private let scanInterval: TimeInterval = 1.5
@@ -31,6 +35,9 @@ final class SessionMonitor: ObservableObject {
     private let maxDiscoveredFiles = 240
     private let bootstrapLookback: TimeInterval = 24 * 60 * 60
     private let bootstrapByteLimit: UInt64 = 1_048_576
+    private let trendLookback: TimeInterval = 6 * 60 * 60
+    private let maxUsageSamples = 500
+    private let maxSessionRankings = 5
 
     init(startsMonitoring: Bool = true) {
         if startsMonitoring {
@@ -74,6 +81,12 @@ final class SessionMonitor: ObservableObject {
                 resetsAt: now.addingTimeInterval(46 * 60 * 60)
             )
         )
+        monitor.usageTrend = Self.previewTrend()
+        monitor.sessionUsageRankings = [
+            SessionUsageSummary(path: "/Users/demo/.codex/sessions/app-redesign.jsonl", name: "app-redesign", totalTokens: 207_310, lastTokens: 21_360, updatedAt: now),
+            SessionUsageSummary(path: "/Users/demo/.codex/sessions/readme-polish.jsonl", name: "readme-polish", totalTokens: 128_400, lastTokens: 8_920, updatedAt: now.addingTimeInterval(-28 * 60)),
+            SessionUsageSummary(path: "/Users/demo/.codex/sessions/release-fix.jsonl", name: "release-fix", totalTokens: 76_820, lastTokens: 12_110, updatedAt: now.addingTimeInterval(-73 * 60))
+        ]
         return monitor
     }
 
@@ -327,6 +340,7 @@ final class SessionMonitor: ObservableObject {
             turns[key] = turn
         case .tokenCount(let usage):
             latestUsage = usage
+            recordUsage(usage, timestamp: event.timestamp ?? Date(), path: path)
         case .taskComplete:
             let key = eventTurnKey(path: path, event: event)
             let turn = turns[key] ?? TurnAccumulator()
@@ -416,6 +430,7 @@ final class SessionMonitor: ObservableObject {
 
         if let latestUsage = snapshot.latestUsage {
             self.latestUsage = latestUsage
+            updateSessionUsage(latestUsage, timestamp: Date(), path: path)
         }
 
         if !snapshot.turnsByID.isEmpty {
@@ -430,7 +445,85 @@ final class SessionMonitor: ObservableObject {
         currentTurnIDByPath.removeAll()
         cachedDiscoveredFiles.removeAll()
         lastFullDiscoveryAt = nil
+        usageSamples.removeAll()
+        usageTrend.removeAll()
+        sessionUsageByPath.removeAll()
+        sessionUsageRankings.removeAll()
         primed = false
+    }
+
+    private func recordUsage(_ usage: TokenUsageSnapshot, timestamp: Date, path: String) {
+        usageSamples.append(UsageSample(timestamp: timestamp, path: path, tokens: max(0, usage.last.totalTokens)))
+        if usageSamples.count > maxUsageSamples {
+            usageSamples.removeFirst(usageSamples.count - maxUsageSamples)
+        }
+
+        let cutoff = Date().addingTimeInterval(-trendLookback)
+        usageSamples.removeAll { $0.timestamp < cutoff }
+        usageTrend = buildTrend(from: usageSamples, now: Date())
+        updateSessionUsage(usage, timestamp: timestamp, path: path)
+    }
+
+    private func updateSessionUsage(_ usage: TokenUsageSnapshot, timestamp: Date, path: String) {
+        sessionUsageByPath[path] = SessionUsageSummary(
+            path: path,
+            name: sessionDisplayName(path),
+            totalTokens: usage.total.totalTokens,
+            lastTokens: usage.last.totalTokens,
+            updatedAt: timestamp
+        )
+
+        sessionUsageRankings = Array(sessionUsageByPath.values
+            .sorted {
+                if $0.totalTokens == $1.totalTokens {
+                    return $0.updatedAt > $1.updatedAt
+                }
+                return $0.totalTokens > $1.totalTokens
+            }
+            .prefix(maxSessionRankings))
+    }
+
+    private func buildTrend(from samples: [UsageSample], now: Date) -> [UsageTrendPoint] {
+        let calendar = Calendar.current
+        let currentHour = calendar.dateInterval(of: .hour, for: now)?.start ?? now
+        let starts = (0..<6).compactMap { offset in
+            calendar.date(byAdding: .hour, value: offset - 5, to: currentHour)
+        }
+        var totals = Dictionary(uniqueKeysWithValues: starts.map { ($0, 0) })
+
+        for sample in samples {
+            guard let hour = calendar.dateInterval(of: .hour, for: sample.timestamp)?.start,
+                  totals[hour] != nil else {
+                continue
+            }
+            totals[hour, default: 0] += sample.tokens
+        }
+
+        return starts.map { start in
+            UsageTrendPoint(hourStart: start, tokens: totals[start, default: 0])
+        }
+    }
+
+    private func sessionDisplayName(_ path: String) -> String {
+        let url = URL(fileURLWithPath: path)
+        let fileName = url.deletingPathExtension().lastPathComponent
+        if !fileName.isEmpty {
+            return fileName
+        }
+        return url.lastPathComponent
+    }
+
+    private static func previewTrend() -> [UsageTrendPoint] {
+        let calendar = Calendar.current
+        let now = Date()
+        let currentHour = calendar.dateInterval(of: .hour, for: now)?.start ?? now
+        let values = [8_400, 12_900, 4_700, 23_600, 16_200, 21_360]
+        return values.enumerated().compactMap { index, value in
+            guard let start = calendar.date(byAdding: .hour, value: index - 5, to: currentHour) else {
+                return nil
+            }
+            return UsageTrendPoint(hourStart: start, tokens: value)
+        }
     }
 
     private func eventTurnKey(path: String, event: SessionEvent) -> String {
@@ -467,6 +560,33 @@ final class SessionMonitor: ObservableObject {
         formatter.dateFormat = "HH:mm:ss"
         return formatter
     }()
+}
+
+struct UsageTrendPoint: Identifiable, Equatable {
+    let hourStart: Date
+    let tokens: Int
+
+    var id: Date {
+        hourStart
+    }
+}
+
+struct SessionUsageSummary: Identifiable, Equatable {
+    let path: String
+    let name: String
+    let totalTokens: Int
+    let lastTokens: Int
+    let updatedAt: Date
+
+    var id: String {
+        path
+    }
+}
+
+private struct UsageSample {
+    let timestamp: Date
+    let path: String
+    let tokens: Int
 }
 
 private extension SessionEventKind {

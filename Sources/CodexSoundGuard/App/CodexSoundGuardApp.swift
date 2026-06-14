@@ -34,16 +34,45 @@ struct CodexSoundGuardApp: App {
             )
         }
         .menuBarExtraStyle(.window)
+
+        Settings {
+            PreferencesView()
+                .environmentObject(monitor)
+        }
     }
 }
 
 private struct MenuBarIconLabel: View {
+    @AppStorage(AppDefaults.Key.menuBarDisplayMode) private var displayMode = MenuBarDisplayMode.graphic.rawValue
+
     let isRunning: Bool
     let outcome: TurnOutcome?
     let latestUsage: TokenUsageSnapshot?
 
     var body: some View {
-        CodexUsageMeter(statusIntensity: statusIntensity, usage: latestUsage)
+        HStack(spacing: 4) {
+            CodexUsageMeter(statusIntensity: statusIntensity, usage: latestUsage)
+
+            if let text = displayText {
+                Text(text)
+                    .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private var displayText: String? {
+        let mode = MenuBarDisplayMode(rawValue: displayMode) ?? .graphic
+        switch mode {
+        case .graphic:
+            return nil
+        case .primaryPercent:
+            return latestUsage?.primaryRateLimit.map { "5h \(UsageFormatter.percent($0.usedPercent))" } ?? "5h --"
+        case .secondaryPercent:
+            return latestUsage?.secondaryRateLimit.map { "7d \(UsageFormatter.percent($0.usedPercent))" } ?? "7d --"
+        case .recentTokens:
+            return latestUsage.map { UsageFormatter.tokenCount($0.last.totalTokens) } ?? "--"
+        }
     }
 
     private var statusIntensity: Double {

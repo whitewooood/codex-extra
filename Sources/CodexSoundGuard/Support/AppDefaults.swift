@@ -10,6 +10,9 @@ enum AppDefaults {
         static let failureSoundPath = "failureSoundPath"
         static let sessionsRootPath = "sessionsRootPath"
         static let volume = "volume"
+        static let menuBarDisplayMode = "menuBarDisplayMode"
+        static let primaryLimitWarningThreshold = "primaryLimitWarningThreshold"
+        static let secondaryLimitWarningThreshold = "secondaryLimitWarningThreshold"
     }
 
     static var sessionsRootPath: String {
@@ -47,7 +50,34 @@ enum AppDefaults {
             Key.completionSoundPath: defaultCompletionSoundPath,
             Key.failureSoundPath: defaultFailureSoundPath,
             Key.sessionsRootPath: sessionsRootPath,
-            Key.volume: 0.8
+            Key.volume: 0.8,
+            Key.menuBarDisplayMode: MenuBarDisplayMode.graphic.rawValue,
+            Key.primaryLimitWarningThreshold: 20.0,
+            Key.secondaryLimitWarningThreshold: 20.0
         ])
+    }
+}
+
+enum MenuBarDisplayMode: String, CaseIterable, Identifiable {
+    case graphic
+    case primaryPercent
+    case secondaryPercent
+    case recentTokens
+
+    var id: String {
+        rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .graphic:
+            return "仅图形"
+        case .primaryPercent:
+            return "5 小时"
+        case .secondaryPercent:
+            return "7 天"
+        case .recentTokens:
+            return "最近 token"
+        }
     }
 }
