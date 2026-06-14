@@ -31,12 +31,7 @@ struct MenuBarView: View {
 
     private var header: some View {
         HStack(spacing: 11) {
-            Image(systemName: monitor.menuIconName)
-                .font(.system(size: 17, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(statusTint)
-                .frame(width: 30, height: 30)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            CodexMark(statusTint: statusTint, size: 30, showsStatus: false)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Codex 声音提醒")

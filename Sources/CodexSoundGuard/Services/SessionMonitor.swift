@@ -36,10 +36,6 @@ final class SessionMonitor: ObservableObject {
         applySettings()
     }
 
-    var menuIconName: String {
-        "terminal"
-    }
-
     func applySettings() {
         if UserDefaults.standard.bool(forKey: AppDefaults.Key.monitoringEnabled) {
             start()
