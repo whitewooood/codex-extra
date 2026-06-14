@@ -71,36 +71,20 @@ struct CodexUsageMeter: View {
         image.lockFocus()
         defer { image.unlockFocus() }
 
-        drawAnchor()
-
         drawBar(
-            rect: CGRect(x: 5.25, y: 10.75, width: 12.35, height: 2.65),
+            rect: CGRect(x: 1.2, y: 10.8, width: 17.4, height: 3.0),
             usedPercent: usage?.primaryRateLimit?.usedPercent,
-            fillAlpha: 0.90
+            fillAlpha: 0.92
         )
         drawBar(
-            rect: CGRect(x: 5.25, y: 5.0, width: 12.35, height: 2.65),
+            rect: CGRect(x: 1.2, y: 5.0, width: 17.4, height: 3.0),
             usedPercent: usage?.secondaryRateLimit?.usedPercent,
             fillAlpha: 0.72
         )
 
-        drawStatusDot(in: CGRect(x: 17.35, y: 1.25, width: 4.3, height: 4.3))
+        drawStatusDot(in: CGRect(x: 19.05, y: 1.35, width: 3.65, height: 3.65))
 
         return image
-    }
-
-    private func drawAnchor() {
-        let anchorPath = NSBezierPath(roundedRect: CGRect(x: 1.75, y: 4.55, width: 2.55, height: 9.7), xRadius: 1.25, yRadius: 1.25)
-        NSColor.black.withAlphaComponent(0.46).setFill()
-        anchorPath.fill()
-
-        let topNode = NSBezierPath(ovalIn: CGRect(x: 1.35, y: 11.15, width: 3.35, height: 3.35))
-        NSColor.black.withAlphaComponent(0.74).setFill()
-        topNode.fill()
-
-        let bottomNode = NSBezierPath(ovalIn: CGRect(x: 1.35, y: 4.15, width: 3.35, height: 3.35))
-        NSColor.black.withAlphaComponent(0.58).setFill()
-        bottomNode.fill()
     }
 
     private func drawStatusDot(in rect: CGRect) {
@@ -111,7 +95,7 @@ struct CodexUsageMeter: View {
 
     private func drawBar(rect: CGRect, usedPercent: Double?, fillAlpha: CGFloat) {
         let trackPath = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
-        NSColor.black.withAlphaComponent(0.16).setFill()
+        NSColor.black.withAlphaComponent(0.15).setFill()
         trackPath.fill()
 
         guard let usedPercent else {
@@ -123,12 +107,12 @@ struct CodexUsageMeter: View {
             return
         }
 
-        let fillWidth = max(1.2, rect.width * remainingProgress)
+        let fillWidth = max(1.6, rect.width * remainingProgress)
         let fillRect = CGRect(x: rect.minX, y: rect.minY, width: fillWidth, height: rect.height)
         let fillPath = NSBezierPath(roundedRect: fillRect, xRadius: rect.height / 2, yRadius: rect.height / 2)
         NSColor.black.withAlphaComponent(fillAlpha).setFill()
         fillPath.fill()
     }
 
-    private static let iconSize = NSSize(width: 22, height: 18)
+    private static let iconSize = NSSize(width: 23, height: 18)
 }
