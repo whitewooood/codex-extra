@@ -1,0 +1,5 @@
+{"timestamp":"2026-06-15T09:00:00.000Z","type":"event_msg","payload":{"type":"task_started","turn_id":"turn-failed-1"}}
+{"timestamp":"2026-06-15T09:00:01.000Z","type":"event_msg","payload":{"type":"user_message","turn_id":"turn-failed-1","message":"上传 release 到 GitHub"}}
+{"timestamp":"2026-06-15T09:00:02.000Z","type":"response_item","payload":{"type":"function_call_output","turn_id":"turn-failed-1","output":"Process exited with code 128\nOutput:\nfatal: authentication failed"}}
+{"timestamp":"2026-06-15T09:00:03.000Z","type":"response_item","payload":{"type":"message","role":"assistant","turn_id":"turn-failed-1","content":[{"type":"output_text","text":"我无法完成上传，当前 GitHub 认证失败。"}]}}
+{"timestamp":"2026-06-15T09:00:04.000Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"turn-failed-1"}}

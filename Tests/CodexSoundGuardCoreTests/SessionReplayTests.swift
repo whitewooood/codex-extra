@@ -2,6 +2,43 @@ import XCTest
 @testable import CodexSoundGuardCore
 
 final class SessionReplayTests: XCTestCase {
+    func testRebuildsCompleteCodexSessionFixture() throws {
+        let snapshot = SessionReplay.rebuild(from: try fixtureLines("codex-session-complete"))
+
+        XCTAssertNil(snapshot.currentTurnID)
+        XCTAssertTrue(snapshot.turnsByID.isEmpty)
+        XCTAssertEqual(snapshot.latestUserMessage, "修复 README 文案并验证打包")
+        XCTAssertEqual(snapshot.latestUsage?.total.totalTokens, 1000)
+        XCTAssertEqual(snapshot.usageEvents.count, 1)
+    }
+
+    func testClassifiesFailedCodexSessionFixture() throws {
+        let lines = try fixtureLines("codex-session-failed")
+        var turn = TurnAccumulator()
+
+        for line in lines {
+            switch SessionLogParser.parseLine(line)?.kind {
+            case .assistantMessage(let message):
+                turn.latestAssistantMessage = message
+            case .commandExit(let code) where code != 0:
+                turn.hasCommandFailure = true
+            case .failureSignal:
+                turn.hasFailureSignal = true
+            default:
+                break
+            }
+        }
+
+        XCTAssertEqual(
+            TurnClassifier.classify(turn, includeCommandFailures: false),
+            TurnClassification(outcome: .failed, reason: "assistant message")
+        )
+        XCTAssertEqual(
+            TurnClassifier.classify(turn, includeCommandFailures: true),
+            TurnClassification(outcome: .failed, reason: "command exit")
+        )
+    }
+
     func testRebuildsActiveFailureTurnFromExistingLogLines() {
         let lines = [
             #"{"timestamp":"2026-06-05T06:00:00.000Z","type":"event_msg","payload":{"type":"task_started","turn_id":"mid-1"}}"#,
@@ -55,5 +92,16 @@ final class SessionReplayTests: XCTestCase {
         let snapshot = SessionReplay.rebuild(from: lines)
 
         XCTAssertEqual(snapshot.latestUserMessage, "修复设置窗口打不开")
+    }
+
+    private func fixtureLines(_ name: String) throws -> [String] {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Fixtures")
+            .appendingPathComponent("\(name).jsonl")
+        return try String(contentsOf: url)
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map(String.init)
     }
 }

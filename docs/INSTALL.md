@@ -22,6 +22,10 @@ cd codex-extra
 
 ## 安装为登录项
 
+从 App 的 Preferences 开启“登录时启动”时，macOS 13 或更新版本会优先使用系统登录项服务。
+
+源码脚本也可以安装当前用户的 LaunchAgent：
+
 ```bash
 ./script/build_and_run.sh --install-login-item
 ```

@@ -33,7 +33,7 @@ enum DocumentationAssetRenderer {
             to: outputDirectory.appendingPathComponent("menu-panel-usage.png")
         )
         try render(
-            PreferencesView(loginItemStatusProvider: { false })
+            PreferencesView(loginItemStatusProvider: { .disabled })
                 .environmentObject(monitor)
                 .environmentObject(updateChecker),
             size: CGSize(width: 740, height: 520),

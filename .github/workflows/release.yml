@@ -23,6 +23,9 @@ jobs:
       - name: Package app
         run: ./script/package_release.sh
 
+      - name: Smoke test release artifacts
+        run: ./script/smoke_release.sh
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:

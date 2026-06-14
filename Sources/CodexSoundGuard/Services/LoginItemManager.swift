@@ -11,10 +11,15 @@ enum LoginItemManager {
     }
 
     static var isInstalled: Bool {
+        status.isInstalled
+    }
+
+    static var status: LoginItemStatus {
         if #available(macOS 13.0, *), SMAppService.mainApp.status == .enabled {
-            return true
+            return .enabled(kind: .systemLoginItem)
         }
-        return FileManager.default.fileExists(atPath: launchAgentPath)
+
+        return launchAgentStatus()
     }
 
     static func install() throws {
@@ -116,6 +121,37 @@ enum LoginItemManager {
         "gui/\(getuid())"
     }
 
+    private static func launchAgentStatus() -> LoginItemStatus {
+        let url = URL(fileURLWithPath: launchAgentPath)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return .disabled
+        }
+
+        guard
+            let data = try? Data(contentsOf: url),
+            let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
+            let arguments = plist["ProgramArguments"] as? [String],
+            let executablePath = arguments.first,
+            !executablePath.isEmpty
+        else {
+            return .stale(reason: "LaunchAgent 配置无法读取")
+        }
+
+        guard FileManager.default.fileExists(atPath: executablePath) else {
+            return .stale(reason: "LaunchAgent 指向的 App 已不存在")
+        }
+
+        guard let currentExecutable = Bundle.main.executableURL?.standardizedFileURL.path else {
+            return .enabled(kind: .launchAgent)
+        }
+
+        if URL(fileURLWithPath: executablePath).standardizedFileURL.path == currentExecutable {
+            return .enabled(kind: .launchAgent)
+        }
+
+        return .stale(reason: "LaunchAgent 指向旧位置")
+    }
+
     private static var canInstallLaunchAgentFallback: Bool {
         let bundleURL = Bundle.main.bundleURL.standardizedFileURL
         guard bundleURL.pathExtension == "app" else {
@@ -128,6 +164,46 @@ enum LoginItemManager {
             .standardizedFileURL
             .path
         return path.hasPrefix("/Applications/") || path.hasPrefix("\(userApplications)/")
+    }
+}
+
+enum LoginItemKind: Equatable {
+    case systemLoginItem
+    case launchAgent
+
+    var title: String {
+        switch self {
+        case .systemLoginItem:
+            return "系统登录项"
+        case .launchAgent:
+            return "LaunchAgent"
+        }
+    }
+}
+
+enum LoginItemStatus: Equatable {
+    case disabled
+    case enabled(kind: LoginItemKind)
+    case stale(reason: String)
+
+    var isInstalled: Bool {
+        switch self {
+        case .enabled:
+            return true
+        case .disabled, .stale:
+            return false
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .disabled:
+            return "未开启"
+        case .enabled(let kind):
+            return "\(kind.title) 已开启"
+        case .stale(let reason):
+            return "\(reason)，建议重新开启"
+        }
     }
 }
 

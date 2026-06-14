@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 struct PreferencesView: View {
     @EnvironmentObject private var monitor: SessionMonitor
     @EnvironmentObject private var updateChecker: UpdateChecker
-    private let loginItemStatusProvider: () -> Bool
+    private let loginItemStatusProvider: () -> LoginItemStatus
 
     @AppStorage(AppDefaults.Key.monitoringEnabled) private var monitoringEnabled = true
     @AppStorage(AppDefaults.Key.completionSoundEnabled) private var completionSoundEnabled = true
@@ -23,12 +23,12 @@ struct PreferencesView: View {
     @AppStorage(AppDefaults.Key.automaticUpdateChecksEnabled) private var automaticUpdateChecksEnabled = false
 
     @State private var selectedPane = PreferencesPane.general
-    @State private var loginItemInstalled = LoginItemManager.isInstalled
+    @State private var loginItemStatus = LoginItemManager.status
     @State private var loginItemMessage: String?
 
-    init(loginItemStatusProvider: @escaping () -> Bool = { LoginItemManager.isInstalled }) {
+    init(loginItemStatusProvider: @escaping () -> LoginItemStatus = { LoginItemManager.status }) {
         self.loginItemStatusProvider = loginItemStatusProvider
-        _loginItemInstalled = State(initialValue: loginItemStatusProvider())
+        _loginItemStatus = State(initialValue: loginItemStatusProvider())
     }
 
     var body: some View {
@@ -56,7 +56,7 @@ struct PreferencesView: View {
         }
         .frame(width: 740, height: 520)
         .onAppear {
-            loginItemInstalled = loginItemStatusProvider()
+            loginItemStatus = loginItemStatusProvider()
         }
         .onChange(of: monitoringEnabled) { _ in
             monitor.applySettings()
@@ -115,7 +115,7 @@ struct PreferencesView: View {
             SettingsSection(title: "启动") {
                 SettingsToggleRow(
                     title: "登录时启动",
-                    detail: loginItemInstalled ? "LaunchAgent 已安装" : "LaunchAgent 未安装",
+                    detail: loginItemStatus.detail,
                     isOn: loginItemBinding
                 )
 
@@ -227,7 +227,7 @@ struct PreferencesView: View {
 
     private var loginItemBinding: Binding<Bool> {
         Binding(
-            get: { loginItemInstalled },
+            get: { loginItemStatus.isInstalled },
             set: { isEnabled in
                 setLoginItem(isEnabled)
             }
@@ -260,10 +260,10 @@ struct PreferencesView: View {
                 try LoginItemManager.uninstall()
                 loginItemMessage = "登录项已移除。"
             }
-            loginItemInstalled = LoginItemManager.isInstalled
+            loginItemStatus = LoginItemManager.status
         } catch {
             loginItemMessage = error.localizedDescription
-            loginItemInstalled = LoginItemManager.isInstalled
+            loginItemStatus = LoginItemManager.status
         }
     }
 

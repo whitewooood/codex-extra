@@ -4,6 +4,19 @@
 
 本项目参考 Keep a Changelog，并使用语义化版本。
 
+## [Unreleased]
+
+### 新增
+
+- 菜单栏状态区显示最近一次任务完成/失败的判定原因，便于排查提示音误判。
+- Release workflow 增加产物 smoke test，校验 app bundle、checksum、zip 内容和 DMG 安装内容。
+- 测试加入更接近 Codex Desktop JSONL 结构的完成/失败 session fixture。
+
+### 变更
+
+- 登录时启动状态会区分系统登录项、LaunchAgent 和失效 LaunchAgent。
+- session 文件发现增加短缓存，减少高频扫描最近日志目录的 IO。
+
 ## [0.3.5] - 2026-06-15
 
 ### 变更

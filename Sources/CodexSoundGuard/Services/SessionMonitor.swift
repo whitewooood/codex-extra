@@ -9,6 +9,7 @@ final class SessionMonitor: ObservableObject {
     @Published private(set) var filesWatched = 0
     @Published private(set) var lastStatus = "等待任务结束"
     @Published private(set) var lastOutcome: TurnOutcome?
+    @Published private(set) var lastClassificationReason = "等待任务结束"
     @Published private(set) var lastEventStatus = "尚未识别到 Codex 事件"
     @Published private(set) var recognizedEventCount = 0
     @Published private(set) var latestUsage: TokenUsageSnapshot?
@@ -25,6 +26,9 @@ final class SessionMonitor: ObservableObject {
     private var latestUserMessageByPath: [String: String] = [:]
     private var cachedDiscoveredFiles: [SessionFileCandidate] = []
     private var lastFullDiscoveryAt: Date?
+    private var cachedRecentFiles: [SessionFileCandidate] = []
+    private var lastRecentDiscoveryAt: Date?
+    private var lastDiscoveryRootPath: String?
     private var usageSamples: [CodexSoundGuardCore.UsageSample] = []
     private var sessionUsageByPath: [String: SessionUsageSummary] = [:]
     private var primed = false
@@ -32,6 +36,7 @@ final class SessionMonitor: ObservableObject {
     private let scanInterval: TimeInterval = 1.5
     private let recentDayLookback = 7
     private let maxRecentFiles = 120
+    private let recentDiscoveryInterval: TimeInterval = 6
     private let fullDiscoveryInterval: TimeInterval = 30
     private let maxDiscoveredFiles = 240
     private let bootstrapLookback: TimeInterval = 24 * 60 * 60
@@ -53,6 +58,7 @@ final class SessionMonitor: ObservableObject {
         monitor.filesWatched = 18
         monitor.lastStatus = "最近完成 22:40:18"
         monitor.lastOutcome = .completed
+        monitor.lastClassificationReason = "Codex 发出任务完成事件"
         monitor.lastEventStatus = "识别到 task_complete · turn 7f2c"
         monitor.recognizedEventCount = 126
         monitor.latestUsage = TokenUsageSnapshot(
@@ -151,14 +157,10 @@ final class SessionMonitor: ObservableObject {
 
     private func sessionFiles() -> [URL] {
         let root = URL(fileURLWithPath: UserDefaults.standard.string(forKey: AppDefaults.Key.sessionsRootPath) ?? AppDefaults.sessionsRootPath)
-        let roots = recentSessionRoots(under: root)
         let keys: [URLResourceKey] = [.contentModificationDateKey, .fileSizeKey]
 
         var activeCandidates: [SessionFileCandidate] = []
-        var recentCandidates: [SessionFileCandidate] = []
-        for root in roots {
-            recentCandidates.append(contentsOf: sessionFileCandidates(in: root, keys: keys))
-        }
+        let recentCandidates = recentSessionCandidates(under: root, keys: keys)
 
         if shouldRefreshFullDiscovery() {
             cachedDiscoveredFiles = Array(sessionFileCandidates(in: root, keys: keys)
@@ -188,10 +190,28 @@ final class SessionMonitor: ObservableObject {
     }
 
     private func shouldRefreshFullDiscovery() -> Bool {
-        guard let lastFullDiscoveryAt else {
+        let rootPath = UserDefaults.standard.string(forKey: AppDefaults.Key.sessionsRootPath) ?? AppDefaults.sessionsRootPath
+        guard lastDiscoveryRootPath == rootPath, let lastFullDiscoveryAt else {
             return true
         }
         return Date().timeIntervalSince(lastFullDiscoveryAt) >= fullDiscoveryInterval
+    }
+
+    private func shouldRefreshRecentDiscovery(rootPath: String) -> Bool {
+        guard lastDiscoveryRootPath == rootPath, let lastRecentDiscoveryAt else {
+            return true
+        }
+        return Date().timeIntervalSince(lastRecentDiscoveryAt) >= recentDiscoveryInterval
+    }
+
+    private func recentSessionCandidates(under root: URL, keys: [URLResourceKey]) -> [SessionFileCandidate] {
+        if shouldRefreshRecentDiscovery(rootPath: root.path) {
+            let roots = recentSessionRoots(under: root)
+            cachedRecentFiles = roots.flatMap { sessionFileCandidates(in: $0, keys: keys) }
+            lastRecentDiscoveryAt = Date()
+            lastDiscoveryRootPath = root.path
+        }
+        return cachedRecentFiles
     }
 
     private func recentSessionRoots(under root: URL) -> [URL] {
@@ -357,6 +377,7 @@ final class SessionMonitor: ObservableObject {
             logger.info("Turn classified as \(classification.outcome.rawValue, privacy: .public): \(classification.reason, privacy: .public)")
             let soundResult = play(outcome: classification.outcome)
             lastOutcome = classification.outcome
+            lastClassificationReason = Self.displayReason(for: classification.reason)
             if soundResult == .suppressedByQuietHours {
                 lastStatus = "安静时段内已静音 \(Self.timeFormatter.string(from: Date()))"
             } else {
@@ -473,6 +494,9 @@ final class SessionMonitor: ObservableObject {
         latestUserMessageByPath.removeAll()
         cachedDiscoveredFiles.removeAll()
         lastFullDiscoveryAt = nil
+        cachedRecentFiles.removeAll()
+        lastRecentDiscoveryAt = nil
+        lastDiscoveryRootPath = nil
         usageSamples.removeAll()
         usageTrend.removeAll()
         sessionUsageByPath.removeAll()
@@ -545,6 +569,21 @@ final class SessionMonitor: ObservableObject {
 
         recognizedEventCount += 1
         lastEventStatus = "\(event.kind.title) \(Self.timeFormatter.string(from: Date()))"
+    }
+
+    private static func displayReason(for reason: String) -> String {
+        switch reason {
+        case "failure event":
+            return "Codex 日志包含失败事件"
+        case "command exit":
+            return "命令返回非 0 退出码"
+        case "assistant message":
+            return "回复文本包含失败/受阻信号"
+        case "task complete":
+            return "Codex 发出任务完成事件"
+        default:
+            return reason
+        }
     }
 
     private static let timeFormatter: DateFormatter = {

@@ -82,6 +82,12 @@ struct MenuBarView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
 
+            Text("判定：\(monitor.lastClassificationReason)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
             Text(monitor.lastEventStatus)
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
