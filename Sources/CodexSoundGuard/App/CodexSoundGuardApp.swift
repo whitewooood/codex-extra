@@ -10,7 +10,7 @@ struct CodexSoundGuardApp: App {
 
     init() {
         AppDefaults.register()
-        if CommandLine.arguments.contains("--render-docs-assets") {
+        if ProcessInfo.processInfo.arguments.contains("--render-docs-assets") {
             do {
                 try DocumentationAssetRenderer.render()
                 Foundation.exit(0)
