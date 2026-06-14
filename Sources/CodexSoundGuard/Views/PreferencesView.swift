@@ -34,17 +34,19 @@ struct PreferencesView: View {
             Divider()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 22) {
                     PreferencesHeader(pane: selectedPane)
 
                     paneContent
                 }
-                .padding(24)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: 520, alignment: .leading)
+                .padding(.horizontal, 34)
+                .padding(.vertical, 30)
             }
-            .background(.regularMaterial)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(nsColor: .windowBackgroundColor))
         }
-        .frame(width: 720, height: 500)
+        .frame(width: 740, height: 520)
         .onAppear {
             loginItemInstalled = LoginItemManager.isInstalled
         }
@@ -66,24 +68,25 @@ struct PreferencesView: View {
     }
 
     private var generalPane: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            PreferenceGroup(title: "运行状态", iconName: "waveform.path.ecg") {
-                PreferenceToggleRow(
+        VStack(alignment: .leading, spacing: 18) {
+            SettingsSection(title: "运行") {
+                SettingsToggleRow(
                     title: "监听 Codex 本地日志",
-                    value: monitor.isRunning ? "运行中" : "已暂停",
+                    detail: monitor.isRunning ? "运行中" : "已暂停",
                     isOn: $monitoringEnabled
                 )
 
-                PreferenceInfoRow(
+                SettingsValueRow(
                     title: "当前日志",
                     value: "\(monitor.filesWatched) 个文件 · \(monitor.recognizedEventCount) 个事件"
                 )
             }
 
-            PreferenceGroup(title: "菜单栏", iconName: "menubar.rectangle") {
-                VStack(alignment: .leading, spacing: 8) {
-                    PreferenceRowHeader(title: "显示模式", value: selectedDisplayMode.title)
-
+            SettingsSection(title: "菜单栏") {
+                SettingsPickerRow(
+                    title: "显示模式",
+                    value: selectedDisplayMode.title
+                ) {
                     Picker("菜单栏显示", selection: $menuBarDisplayMode) {
                         ForEach(MenuBarDisplayMode.allCases) { mode in
                             Text(mode.title).tag(mode.rawValue)
@@ -91,61 +94,58 @@ struct PreferencesView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
+                    .frame(width: 288)
                 }
 
-                PreferenceToggleRow(
+                SettingsToggleRow(
                     title: "命令非 0 退出算失败",
-                    value: commandFailureHeuristicEnabled ? "已开启" : "默认关闭",
+                    detail: commandFailureHeuristicEnabled ? "已开启" : "默认关闭",
                     isOn: $commandFailureHeuristicEnabled
                 )
             }
 
-            PreferenceGroup(title: "启动项", iconName: "power") {
-                PreferenceToggleRow(
+            SettingsSection(title: "启动") {
+                SettingsToggleRow(
                     title: "登录时启动",
-                    value: loginItemInstalled ? "已安装 LaunchAgent" : "未安装 LaunchAgent",
+                    detail: loginItemInstalled ? "LaunchAgent 已安装" : "LaunchAgent 未安装",
                     isOn: loginItemBinding
                 )
 
                 if let loginItemMessage {
-                    Text(loginItemMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    SettingsFootnote(text: loginItemMessage)
                 }
             }
         }
     }
 
     private var soundsPane: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            PreferenceGroup(title: "音量", iconName: "speaker.wave.2") {
-                HStack(spacing: 12) {
-                    Image(systemName: "speaker.wave.1")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 18)
-                    Slider(value: $volume, in: 0...1)
-                    Text("\(Int(volume * 100))%")
-                        .font(.callout.monospacedDigit().weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 48, alignment: .trailing)
+        VStack(alignment: .leading, spacing: 18) {
+            SettingsSection(title: "音量") {
+                SettingsControlRow(title: "提示音音量") {
+                    HStack(spacing: 10) {
+                        Slider(value: $volume, in: 0...1)
+                            .frame(width: 230)
+                        Text("\(Int(volume * 100))%")
+                            .font(.callout.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 44, alignment: .trailing)
+                    }
                 }
-                .frame(height: 28)
             }
 
-            PreferenceGroup(title: "提醒声音", iconName: "bell.badge") {
-                SoundPreferenceRow(
+            SettingsSection(title: "提示音") {
+                SoundSettingsRow(
                     title: "完成提醒",
-                    subtitle: "任务结束且未识别到失败时播放",
+                    detail: "任务正常结束",
                     isEnabled: $completionSoundEnabled,
                     path: completionSoundPath,
                     testAction: { monitor.testCompletionSound() },
                     chooseAction: { chooseSound(defaultKey: AppDefaults.Key.completionSoundPath) }
                 )
 
-                SoundPreferenceRow(
+                SoundSettingsRow(
                     title: "失败提醒",
-                    subtitle: "任务结束且识别到失败时播放",
+                    detail: "失败、受阻或超时",
                     isEnabled: $failureSoundEnabled,
                     path: failureSoundPath,
                     testAction: { monitor.testFailureSound() },
@@ -153,57 +153,43 @@ struct PreferencesView: View {
                 )
             }
 
-            PreferenceGroup(title: "安静时段", iconName: "moon.zzz") {
-                PreferenceToggleRow(
+            SettingsSection(title: "安静时段") {
+                SettingsToggleRow(
                     title: "暂停提示音",
-                    value: quietHoursEnabled ? quietHoursSummary : "关闭",
+                    detail: quietHoursEnabled ? quietHoursSummary : "关闭",
                     isOn: $quietHoursEnabled
                 )
 
-                HStack(spacing: 12) {
-                    QuietHourPicker(title: "开始", selection: $quietHoursStartMinute)
-                    QuietHourPicker(title: "结束", selection: $quietHoursEndMinute)
+                SettingsControlRow(title: "时间") {
+                    HStack(spacing: 8) {
+                        QuietHourPicker(selection: $quietHoursStartMinute)
+                        Text("-")
+                            .foregroundStyle(.secondary)
+                        QuietHourPicker(selection: $quietHoursEndMinute)
+                    }
+                    .disabled(!quietHoursEnabled)
+                    .opacity(quietHoursEnabled ? 1 : 0.45)
                 }
-                .disabled(!quietHoursEnabled)
-                .opacity(quietHoursEnabled ? 1 : 0.46)
 
-                Text("安静时段只会暂停自动完成/失败提示音；试听按钮仍会播放。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsFootnote(text: "试听会绕过安静时段。")
             }
         }
     }
 
     private var limitsPane: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            PreferenceGroup(title: "剩余额度", iconName: "gauge.with.dots.needle.50percent") {
-                ThresholdPreferenceRow(
-                    title: "5 小时窗口",
-                    value: $primaryThreshold
-                )
-
-                ThresholdPreferenceRow(
-                    title: "7 天窗口",
-                    value: $secondaryThreshold
-                )
+        VStack(alignment: .leading, spacing: 18) {
+            SettingsSection(title: "提醒阈值") {
+                ThresholdSettingsRow(title: "5 小时窗口", value: $primaryThreshold)
+                ThresholdSettingsRow(title: "7 天窗口", value: $secondaryThreshold)
             }
 
-            PreferenceGroup(title: "当前用量", iconName: "chart.bar.xaxis") {
+            SettingsSection(title: "当前用量") {
                 if let usage = monitor.latestUsage {
-                    PreferenceInfoRow(
-                        title: "最近 token",
-                        value: UsageFormatter.tokenCount(usage.last.totalTokens)
-                    )
-                    PreferenceInfoRow(
-                        title: "累计 token",
-                        value: UsageFormatter.tokenCount(usage.total.totalTokens)
-                    )
-                    PreferenceInfoRow(
-                        title: "上下文窗口",
-                        value: UsageFormatter.contextWindow(usage.modelContextWindow)
-                    )
+                    SettingsValueRow(title: "最近 token", value: UsageFormatter.tokenCount(usage.last.totalTokens))
+                    SettingsValueRow(title: "累计 token", value: UsageFormatter.tokenCount(usage.total.totalTokens))
+                    SettingsValueRow(title: "上下文窗口", value: UsageFormatter.contextWindow(usage.modelContextWindow))
                 } else {
-                    PreferenceInfoRow(title: "状态", value: "等待 Codex 用量事件")
+                    SettingsValueRow(title: "状态", value: "等待 Codex 用量事件")
                 }
             }
         }
@@ -283,11 +269,11 @@ private enum PreferencesPane: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .general:
-            return "监听、菜单栏与启动项"
+            return "监听、菜单栏、启动"
         case .sounds:
-            return "完成与失败提醒"
+            return "提醒音与安静时段"
         case .limits:
-            return "阈值与当前用量"
+            return "阈值与用量"
         }
     }
 
@@ -309,20 +295,21 @@ private struct PreferencesSidebar: View {
     let filesWatched: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text("Codex Monitor")
                     .font(.headline.weight(.semibold))
-                Text("设置")
+                    .lineLimit(1)
+                Text("Preferences")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 16)
             .padding(.top, 18)
 
-            VStack(spacing: 4) {
+            VStack(spacing: 2) {
                 ForEach(PreferencesPane.allCases) { pane in
-                    SidebarButton(
+                    SidebarRow(
                         pane: pane,
                         isSelected: pane == selectedPane
                     ) {
@@ -334,59 +321,76 @@ private struct PreferencesSidebar: View {
 
             Spacer()
 
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(Color.primary.opacity(isRunning ? 0.68 : 0.28))
-                    .frame(width: 7, height: 7)
-                Text(isRunning ? "监听中" : "已暂停")
-                    .font(.caption.weight(.medium))
-                Spacer()
-                Text("\(filesWatched)")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .padding([.horizontal, .bottom], 10)
+            SidebarStatusPill(isRunning: isRunning, filesWatched: filesWatched)
+                .padding([.horizontal, .bottom], 12)
         }
-        .frame(width: 190)
+        .frame(width: 196)
         .background(.bar)
     }
 }
 
-private struct SidebarButton: View {
+private struct SidebarRow: View {
     let pane: PreferencesPane
     let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 9) {
+            HStack(spacing: 10) {
                 Image(systemName: pane.iconName)
-                    .font(.system(size: 13, weight: .semibold))
-                    .frame(width: 18)
+                    .font(.system(size: 14, weight: .medium))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .frame(width: 20)
+
                 VStack(alignment: .leading, spacing: 1) {
                     Text(pane.title)
                         .font(.callout.weight(.medium))
+                        .foregroundStyle(.primary)
                     Text(pane.subtitle)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
-                Spacer()
+
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .frame(height: 46)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(isSelected ? .primary : .secondary)
-        .background(selectionBackground, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .background {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.16))
+            }
+        }
     }
+}
 
-    private var selectionBackground: Color {
-        isSelected ? Color.accentColor.opacity(0.16) : Color.clear
+private struct SidebarStatusPill: View {
+    let isRunning: Bool
+    let filesWatched: Int
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(Color.primary.opacity(isRunning ? 0.72 : 0.30))
+                .frame(width: 7, height: 7)
+
+            Text(isRunning ? "监听中" : "已暂停")
+                .font(.caption.weight(.medium))
+
+            Spacer(minLength: 6)
+
+            Text("\(filesWatched)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 30)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
@@ -394,122 +398,160 @@ private struct PreferencesHeader: View {
     let pane: PreferencesPane
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image(systemName: pane.iconName)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 34, height: 34)
-                .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        VStack(alignment: .leading, spacing: 3) {
+            Text(pane.title)
+                .font(.system(size: 28, weight: .semibold))
+                .lineLimit(1)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(pane.title)
-                    .font(.title3.weight(.semibold))
-                Text(pane.subtitle)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
+            Text(pane.subtitle)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
+        .padding(.bottom, 2)
     }
 }
 
-private struct PreferenceGroup<Content: View>: View {
+private struct SettingsSection<Content: View>: View {
     let title: String
-    let iconName: String
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label(title, systemImage: iconName)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
+                .padding(.leading, 2)
 
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(spacing: 0) {
                 content
             }
-            .padding(12)
-            .background(.quaternary.opacity(0.42), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(nsColor: .controlBackgroundColor).opacity(0.56), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(.separator.opacity(0.22), lineWidth: 1)
+                    .strokeBorder(.separator.opacity(0.18), lineWidth: 1)
             }
         }
     }
 }
 
-private struct PreferenceRowHeader: View {
+private struct SettingsControlRow<Control: View>: View {
+    let title: String
+    @ViewBuilder var control: Control
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            Text(title)
+                .font(.callout)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+
+            Spacer(minLength: 24)
+
+            control
+        }
+        .settingsRow()
+    }
+}
+
+private struct SettingsPickerRow<Control: View>: View {
+    let title: String
+    let value: String
+    @ViewBuilder var control: Control
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(.callout)
+
+                Spacer(minLength: 16)
+
+                Text(value)
+                    .font(.callout.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+
+            control
+        }
+        .settingsRow()
+    }
+}
+
+private struct SettingsValueRow: View {
     let title: String
     let value: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
             Text(title)
-                .font(.callout.weight(.medium))
-            Spacer(minLength: 16)
+                .font(.callout)
+            Spacer(minLength: 24)
             Text(value)
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
+        .settingsRow()
     }
 }
 
-private struct PreferenceInfoRow: View {
+private struct SettingsToggleRow: View {
     let title: String
-    let value: String
-
-    var body: some View {
-        PreferenceRowHeader(title: title, value: value)
-            .frame(minHeight: 30)
-    }
-}
-
-private struct PreferenceToggleRow: View {
-    let title: String
-    let value: String
+    let detail: String
     @Binding var isOn: Bool
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.callout.weight(.medium))
-                Text(value)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Text(detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            Spacer(minLength: 16)
+
+            Spacer(minLength: 24)
+
             Toggle("", isOn: $isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
         }
-        .frame(minHeight: 34)
+        .settingsRow()
     }
 }
 
-private struct SoundPreferenceRow: View {
+private struct SoundSettingsRow: View {
     let title: String
-    let subtitle: String
+    let detail: String
     @Binding var isEnabled: Bool
     let path: String
     let testAction: () -> Void
     let chooseAction: () -> Void
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(alignment: .center, spacing: 12) {
+        VStack(spacing: 10) {
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.callout)
+                        .lineLimit(1)
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 24)
+
                 Toggle("", isOn: $isEnabled)
                     .labelsHidden()
                     .toggleStyle(.switch)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.callout.weight(.medium))
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 16)
             }
 
             HStack(spacing: 8) {
@@ -521,38 +563,48 @@ private struct SoundPreferenceRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Button(action: testAction) {
-                    Label("试听", systemImage: "play.fill")
+                    Image(systemName: "play.fill")
+                        .frame(width: 16, height: 16)
                 }
+                .buttonStyle(.borderless)
                 .disabled(!isEnabled)
+                .help("试听")
 
                 Button(action: chooseAction) {
-                    Label("选择", systemImage: "folder")
+                    Image(systemName: "folder")
+                        .frame(width: 16, height: 16)
                 }
+                .buttonStyle(.borderless)
+                .help("选择声音")
             }
-            .controlSize(.small)
         }
-        .padding(.vertical, 4)
+        .settingsRow()
+    }
+}
+
+private struct SettingsFootnote: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .settingsRow(verticalPadding: 8)
     }
 }
 
 private struct QuietHourPicker: View {
-    let title: String
     @Binding var selection: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Picker(title, selection: $selection) {
-                ForEach(Self.timeOptions, id: \.self) { minute in
-                    Text(Self.timeLabel(for: minute)).tag(minute)
-                }
+        Picker("时间", selection: $selection) {
+            ForEach(Self.timeOptions, id: \.self) { minute in
+                Text(Self.timeLabel(for: minute)).tag(minute)
             }
-            .labelsHidden()
-            .frame(maxWidth: .infinity)
         }
+        .labelsHidden()
+        .frame(width: 92)
     }
 
     private static let timeOptions = Array(stride(from: 0, through: 23 * 60 + 30, by: 30))
@@ -562,21 +614,45 @@ private struct QuietHourPicker: View {
     }
 }
 
-private struct ThresholdPreferenceRow: View {
+private struct ThresholdSettingsRow: View {
     let title: String
     @Binding var value: Double
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            PreferenceRowHeader(title: title, value: "\(Int(value))%")
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(.callout)
 
-            HStack(spacing: 10) {
+                Spacer(minLength: 16)
+
+                Text("\(Int(value))%")
+                    .font(.callout.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 12) {
                 Slider(value: $value, in: 5...80, step: 5)
-
                 ProgressView(value: value, total: 100)
-                    .frame(width: 74)
+                    .frame(width: 82)
             }
         }
-        .padding(.vertical, 4)
+        .settingsRow()
+    }
+}
+
+private extension View {
+    func settingsRow(verticalPadding: CGFloat = 12) -> some View {
+        self
+            .padding(.horizontal, 14)
+            .padding(.vertical, verticalPadding)
+            .frame(minHeight: 48)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(.separator.opacity(0.24))
+                    .frame(height: 1)
+                    .padding(.leading, 14)
+            }
     }
 }

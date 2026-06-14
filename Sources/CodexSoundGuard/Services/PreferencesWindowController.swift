@@ -16,7 +16,7 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate {
 
     private func makeWindow(monitor: SessionMonitor) -> NSWindow {
         let hostingView = NSHostingView(rootView: PreferencesView().environmentObject(monitor))
-        let size = NSSize(width: 720, height: 500)
+        let size = NSSize(width: 740, height: 520)
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .miniaturizable],

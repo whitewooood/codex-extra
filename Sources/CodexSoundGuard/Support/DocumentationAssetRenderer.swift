@@ -32,7 +32,7 @@ enum DocumentationAssetRenderer {
         try render(
             PreferencesView()
                 .environmentObject(monitor),
-            size: CGSize(width: 720, height: 500),
+            size: CGSize(width: 740, height: 520),
             to: outputDirectory.appendingPathComponent("preferences.png")
         )
     }
