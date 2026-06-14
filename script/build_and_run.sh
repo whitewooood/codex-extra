@@ -105,6 +105,7 @@ restart_launch_agent() {
   launchctl bootout "$GUI_DOMAIN" "$LAUNCH_AGENT" >/dev/null 2>&1 || true
   launchctl bootstrap "$GUI_DOMAIN" "$LAUNCH_AGENT"
   launchctl enable "$GUI_DOMAIN/$BUNDLE_ID"
+  launchctl kickstart -k "$GUI_DOMAIN/$BUNDLE_ID" >/dev/null 2>&1 || true
 }
 
 start_installed_app() {

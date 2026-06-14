@@ -38,15 +38,26 @@ struct CodexUsageMeter: View {
     let usage: TokenUsageSnapshot?
 
     var body: some View {
-        HStack(spacing: 3) {
-            CodexMark(statusTint: statusTint, size: 15)
-
+        ZStack(alignment: .bottomTrailing) {
             VStack(spacing: 2) {
                 TinyUsageBar(usedPercent: usage?.primaryRateLimit?.usedPercent, tint: .accentColor)
                 TinyUsageBar(usedPercent: usage?.secondaryRateLimit?.usedPercent, tint: .secondary)
             }
-            .frame(width: 14, height: 10)
+            .padding(.horizontal, 3)
+            .padding(.vertical, 4)
+            .frame(width: 18, height: 18)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .strokeBorder(.separator.opacity(0.45), lineWidth: 1)
+            }
+
+            Circle()
+                .fill(statusTint)
+                .frame(width: 5, height: 5)
+                .offset(x: 1, y: 1)
         }
+        .frame(width: 19, height: 18)
         .fixedSize()
         .accessibilityLabel(accessibilityLabel)
         .help(helpText)
