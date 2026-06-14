@@ -38,7 +38,7 @@ final class SessionMonitor: ObservableObject {
     private let bootstrapByteLimit: UInt64 = 1_048_576
     private let trendLookback: TimeInterval = 6 * 60 * 60
     private let maxUsageSamples = 500
-    private let maxSessionRankings = 5
+    private let maxSessionRankings = 3
 
     init(startsMonitoring: Bool = true) {
         if startsMonitoring {
