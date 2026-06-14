@@ -89,7 +89,7 @@ enum MenuBarDisplayMode: String, CaseIterable, Identifiable {
         case .secondaryPercent:
             return "7 天"
         case .recentTokens:
-            return "最近 token"
+            return "最近用量"
         }
     }
 }

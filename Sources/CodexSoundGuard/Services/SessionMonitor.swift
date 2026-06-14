@@ -41,7 +41,8 @@ final class SessionMonitor: ObservableObject {
     private let maxDiscoveredFiles = 240
     private let bootstrapLookback: TimeInterval = 24 * 60 * 60
     private let bootstrapByteLimit: UInt64 = 1_048_576
-    private let trendLookback: TimeInterval = 6 * 60 * 60
+    private let trendLookback: TimeInterval = 24 * 60 * 60
+    private let trendHourCount = 24
     private let maxUsageSamples = 500
     private let maxSessionRankings = 3
 
@@ -512,7 +513,7 @@ final class SessionMonitor: ObservableObject {
 
         let cutoff = Date().addingTimeInterval(-trendLookback)
         usageSamples.removeAll { $0.timestamp < cutoff }
-        usageTrend = UsageAnalytics.buildTrend(from: usageSamples, now: Date())
+        usageTrend = UsageAnalytics.buildTrend(from: usageSamples, now: Date(), hourCount: trendHourCount)
         updateSessionUsage(usage, timestamp: timestamp, path: path, title: title)
     }
 
@@ -533,9 +534,9 @@ final class SessionMonitor: ObservableObject {
         let calendar = Calendar.current
         let now = Date()
         let currentHour = calendar.dateInterval(of: .hour, for: now)?.start ?? now
-        let values = [8_400, 12_900, 4_700, 23_600, 16_200, 21_360]
+        let values = [1_800, 0, 2_400, 0, 3_100, 0, 6_200, 8_400, 12_900, 0, 4_700, 0, 0, 9_800, 23_600, 0, 7_400, 16_200, 0, 5_900, 0, 10_200, 0, 21_360]
         return values.enumerated().compactMap { index, value in
-            guard let start = calendar.date(byAdding: .hour, value: index - 5, to: currentHour) else {
+            guard let start = calendar.date(byAdding: .hour, value: index - (values.count - 1), to: currentHour) else {
                 return nil
             }
             return UsageTrendPoint(hourStart: start, tokens: value)

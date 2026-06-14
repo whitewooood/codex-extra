@@ -82,7 +82,7 @@ struct MenuBarView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
 
-            Text("判定：\(monitor.lastClassificationReason)")
+            Text("原因：\(monitor.lastClassificationReason)")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -117,7 +117,7 @@ struct MenuBarView: View {
 
                     TokenSummaryRow(usage: usage)
                 } else {
-                    EmptyStateLine(iconName: "hourglass", text: "等待 Codex 写入用量事件")
+                    EmptyStateLine(iconName: "hourglass", text: "等待用量数据")
                 }
             }
         }
@@ -127,7 +127,7 @@ struct MenuBarView: View {
         Surface {
             VStack(alignment: .leading, spacing: 11) {
                 SectionHeader(
-                    title: "用量趋势",
+                    title: "24 小时趋势",
                     iconName: "chart.xyaxis.line",
                     trailing: trendHeaderValue
                 )
@@ -135,7 +135,7 @@ struct MenuBarView: View {
                 if monitor.usageTrend.contains(where: { $0.tokens > 0 }) {
                     UsageTrendChart(points: monitor.usageTrend)
                 } else {
-                    EmptyStateLine(iconName: "chart.line.uptrend.xyaxis", text: "等待最近几小时的 token 用量")
+                    EmptyStateLine(iconName: "chart.line.uptrend.xyaxis", text: "等待用量数据")
                 }
             }
         }
@@ -147,11 +147,11 @@ struct MenuBarView: View {
                 SectionHeader(
                     title: "会话排行",
                     iconName: "list.number",
-                    trailing: "session 累计 Top \(monitor.sessionUsageRankings.count)"
+                    trailing: "前 \(monitor.sessionUsageRankings.count)"
                 )
 
                 if monitor.sessionUsageRankings.isEmpty {
-                    EmptyStateLine(iconName: "doc.text.magnifyingglass", text: "等待 session 用量数据")
+                    EmptyStateLine(iconName: "doc.text.magnifyingglass", text: "暂无会话用量")
                 } else {
                     VStack(spacing: 6) {
                         ForEach(Array(monitor.sessionUsageRankings.enumerated()), id: \.element.id) { index, summary in
@@ -202,7 +202,7 @@ struct MenuBarView: View {
     }
 
     private var statusSubheading: String {
-        monitor.isRunning ? "本地日志用量与任务提醒" : "监听已暂停，点击开关恢复"
+        monitor.isRunning ? "用量与提醒" : "已暂停"
     }
 
     private var statusLine: String {
@@ -220,9 +220,9 @@ struct MenuBarView: View {
     private var trendHeaderValue: String {
         let total = monitor.usageTrend.reduce(0) { $0 + $1.tokens }
         guard total > 0 else {
-            return "最近 6 小时"
+            return "最近 24 小时"
         }
-        return "6h \(UsageFormatter.tokenCount(total))"
+        return "24 小时 \(UsageFormatter.tokenCount(total))"
     }
 
     private var lastOutcomeLabel: String {

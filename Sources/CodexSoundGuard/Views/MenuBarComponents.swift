@@ -224,11 +224,13 @@ struct UsageTrendChart: View {
                     }
                     .stroke(Color.primary.opacity(0.78), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
 
-                    ForEach(Array(linePoints(in: proxy.size).enumerated()), id: \.offset) { _, point in
-                        Circle()
-                            .fill(Color.primary.opacity(0.86))
-                            .frame(width: 4, height: 4)
-                            .position(point)
+                    if points.count <= 12 {
+                        ForEach(Array(linePoints(in: proxy.size).enumerated()), id: \.offset) { _, point in
+                            Circle()
+                                .fill(Color.primary.opacity(0.86))
+                                .frame(width: 4, height: 4)
+                                .position(point)
+                        }
                     }
                 }
             }
@@ -237,7 +239,7 @@ struct UsageTrendChart: View {
             HStack {
                 Text(points.first.map { Self.hourFormatter.string(from: $0.hourStart) } ?? "--")
                 Spacer()
-                Text("last_token 合计 \(UsageFormatter.tokenCount(totalTokens))")
+                Text("合计 \(UsageFormatter.tokenCount(totalTokens))")
                 Spacer()
                 Text("峰值 \(UsageFormatter.tokenCount(maxTokens))")
                 Spacer()
@@ -297,7 +299,7 @@ struct SessionRankRow: View {
                         .font(.caption.weight(.semibold))
                         .lineLimit(1)
                         .truncationMode(.tail)
-                    Text("最近 \(UsageFormatter.tokenCount(summary.lastTokens)) · 更新 \(Self.timeFormatter.string(from: summary.updatedAt)) · \(summary.fileName)")
+                    Text("最近 \(UsageFormatter.tokenCount(summary.lastTokens)) · \(Self.timeFormatter.string(from: summary.updatedAt)) · \(summary.fileName)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -309,7 +311,7 @@ struct SessionRankRow: View {
                 Text(UsageFormatter.tokenCount(summary.totalTokens))
                     .font(.caption.monospacedDigit().weight(.semibold))
                     .lineLimit(1)
-                    .help("该 session 当前累计 token")
+                    .help("会话累计 token")
             }
 
             GeometryReader { proxy in

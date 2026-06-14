@@ -24,11 +24,11 @@ enum PreferencesPane: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .general:
-            return "监听、菜单栏、启动"
+            return "运行与启动"
         case .sounds:
-            return "提醒音与安静时段"
+            return "提示音与静音"
         case .limits:
-            return "阈值与用量"
+            return "阈值与数据"
         }
     }
 
@@ -55,7 +55,7 @@ struct PreferencesSidebar: View {
                 Text("Codex Monitor")
                     .font(.headline.weight(.semibold))
                     .lineLimit(1)
-                Text("Preferences")
+                Text("设置")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

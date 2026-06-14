@@ -79,13 +79,13 @@ struct PreferencesView: View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection(title: "运行") {
                 SettingsToggleRow(
-                    title: "监听 Codex 本地日志",
+                    title: "监听日志",
                     detail: monitor.isRunning ? "运行中" : "已暂停",
                     isOn: $monitoringEnabled
                 )
 
                 SettingsValueRow(
-                    title: "当前日志",
+                    title: "已识别",
                     value: "\(monitor.filesWatched) 个文件 · \(monitor.recognizedEventCount) 个事件"
                 )
             }
@@ -106,8 +106,8 @@ struct PreferencesView: View {
                 }
 
                 SettingsToggleRow(
-                    title: "命令非 0 退出算失败",
-                    detail: commandFailureHeuristicEnabled ? "已开启" : "默认关闭",
+                    title: "命令失败也提醒",
+                    detail: commandFailureHeuristicEnabled ? "开启" : "关闭",
                     isOn: $commandFailureHeuristicEnabled
                 )
             }
@@ -127,7 +127,7 @@ struct PreferencesView: View {
             SettingsSection(title: "更新") {
                 SettingsToggleRow(
                     title: "自动检查更新",
-                    detail: automaticUpdateChecksEnabled ? "每天最多请求一次 GitHub" : "关闭；仅手动检查",
+                    detail: automaticUpdateChecksEnabled ? "每天一次" : "手动",
                     isOn: $automaticUpdateChecksEnabled
                 )
 
@@ -197,7 +197,7 @@ struct PreferencesView: View {
                     .opacity(quietHoursEnabled ? 1 : 0.45)
                 }
 
-                SettingsFootnote(text: "试听会绕过安静时段。")
+                SettingsFootnote(text: "试听不受安静时段影响。")
             }
         }
     }
@@ -211,11 +211,11 @@ struct PreferencesView: View {
 
             SettingsSection(title: "当前用量") {
                 if let usage = monitor.latestUsage {
-                    SettingsValueRow(title: "最近 token", value: UsageFormatter.tokenCount(usage.last.totalTokens))
-                    SettingsValueRow(title: "累计 token", value: UsageFormatter.tokenCount(usage.total.totalTokens))
-                    SettingsValueRow(title: "上下文窗口", value: UsageFormatter.contextWindow(usage.modelContextWindow))
+                    SettingsValueRow(title: "最近", value: UsageFormatter.tokenCount(usage.last.totalTokens))
+                    SettingsValueRow(title: "累计", value: UsageFormatter.tokenCount(usage.total.totalTokens))
+                    SettingsValueRow(title: "上下文", value: UsageFormatter.contextWindow(usage.modelContextWindow))
                 } else {
-                    SettingsValueRow(title: "状态", value: "等待 Codex 用量事件")
+                    SettingsValueRow(title: "状态", value: "等待用量数据")
                 }
             }
         }
