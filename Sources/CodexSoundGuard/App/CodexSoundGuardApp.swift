@@ -33,21 +33,21 @@ private struct MenuBarIconLabel: View {
     let latestUsage: TokenUsageSnapshot?
 
     var body: some View {
-        CodexUsageMeter(statusTint: statusTint, usage: latestUsage)
+        CodexUsageMeter(statusIntensity: statusIntensity, usage: latestUsage)
     }
 
-    private var statusTint: Color {
+    private var statusIntensity: Double {
         guard isRunning else {
-            return .secondary
+            return 0.28
         }
 
         switch outcome {
         case .completed:
-            return .green
+            return 0.70
         case .failed:
-            return .red
+            return 1.0
         case nil:
-            return .accentColor
+            return 0.52
         }
     }
 

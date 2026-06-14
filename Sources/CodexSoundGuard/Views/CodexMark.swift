@@ -35,7 +35,7 @@ struct CodexMark: View {
 }
 
 struct CodexUsageMeter: View {
-    let statusTint: Color
+    let statusIntensity: Double
     let usage: TokenUsageSnapshot?
 
     var body: some View {
@@ -81,13 +81,11 @@ struct CodexUsageMeter: View {
 
         drawBar(
             rect: CGRect(x: 3.5, y: 10.3, width: 10, height: 3),
-            usedPercent: usage?.primaryRateLimit?.usedPercent,
-            fillColor: .controlAccentColor
+            usedPercent: usage?.primaryRateLimit?.usedPercent
         )
         drawBar(
             rect: CGRect(x: 3.5, y: 5.0, width: 10, height: 3),
-            usedPercent: usage?.secondaryRateLimit?.usedPercent,
-            fillColor: NSColor.labelColor.withAlphaComponent(0.72)
+            usedPercent: usage?.secondaryRateLimit?.usedPercent
         )
 
         let dotPath = NSBezierPath(ovalIn: CGRect(x: 13.25, y: 0.9, width: 5.5, height: 5.5))
@@ -95,34 +93,30 @@ struct CodexUsageMeter: View {
         dotPath.fill()
 
         let innerDotPath = NSBezierPath(ovalIn: CGRect(x: 14.0, y: 1.65, width: 4, height: 4))
-        resolvedStatusColor.setFill()
+        NSColor.labelColor.withAlphaComponent(statusIntensity).setFill()
         innerDotPath.fill()
 
         return image
     }
 
-    private var resolvedStatusColor: NSColor {
-        NSColor(statusTint).usingColorSpace(.deviceRGB) ?? .controlAccentColor
-    }
-
-    private func drawBar(rect: CGRect, usedPercent: Double?, fillColor: NSColor) {
+    private func drawBar(rect: CGRect, usedPercent: Double?) {
         let trackPath = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
-        NSColor.labelColor.withAlphaComponent(0.24).setFill()
+        NSColor.labelColor.withAlphaComponent(0.18).setFill()
         trackPath.fill()
 
         guard let usedPercent else {
             return
         }
 
-        let progress = max(0, min(usedPercent, 100)) / 100
-        guard progress > 0 else {
+        let remainingProgress = 1 - (max(0, min(usedPercent, 100)) / 100)
+        guard remainingProgress > 0 else {
             return
         }
 
-        let fillWidth = max(1.2, rect.width * progress)
+        let fillWidth = max(1.2, rect.width * remainingProgress)
         let fillRect = CGRect(x: rect.minX, y: rect.minY, width: fillWidth, height: rect.height)
         let fillPath = NSBezierPath(roundedRect: fillRect, xRadius: rect.height / 2, yRadius: rect.height / 2)
-        fillColor.setFill()
+        NSColor.labelColor.withAlphaComponent(0.82).setFill()
         fillPath.fill()
     }
 }

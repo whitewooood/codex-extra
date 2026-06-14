@@ -105,6 +105,7 @@ restart_launch_agent() {
   launchctl bootout "$GUI_DOMAIN" "$LAUNCH_AGENT" >/dev/null 2>&1 || true
   launchctl bootstrap "$GUI_DOMAIN" "$LAUNCH_AGENT"
   launchctl enable "$GUI_DOMAIN/$BUNDLE_ID"
+  sleep 0.5
   launchctl kickstart -k "$GUI_DOMAIN/$BUNDLE_ID" >/dev/null 2>&1 || true
 }
 
@@ -129,6 +130,17 @@ installed_process_running() {
   return 1
 }
 
+wait_for_installed_process() {
+  for _ in {1..12}; do
+    if installed_process_running; then
+      return 0
+    fi
+    launchctl kickstart -k "$GUI_DOMAIN/$BUNDLE_ID" >/dev/null 2>&1 || true
+    sleep 0.5
+  done
+  return 1
+}
+
 build_install_and_start() {
   build_app
   stop_installed_app
@@ -142,8 +154,7 @@ case "$MODE" in
     ;;
   --verify|verify)
     build_install_and_start
-    sleep 1
-    installed_process_running
+    wait_for_installed_process
     ;;
   --install|install)
     build_install_and_start
