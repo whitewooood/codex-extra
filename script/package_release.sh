@@ -23,8 +23,29 @@ ZIP_PATH="$RELEASE_DIR/$ZIP_NAME"
 DMG_PATH="$RELEASE_DIR/$DMG_NAME"
 ZIP_CHECKSUM_PATH="$ZIP_PATH.sha256"
 DMG_CHECKSUM_PATH="$DMG_PATH.sha256"
-DMG_ROOT="$RELEASE_DIR/dmg-root"
-DMG_RW_PATH="$RELEASE_DIR/$ARTIFACT_BASENAME-rw.dmg"
+DMG_TEMP_DIR=""
+DMG_ROOT=""
+DMG_RW_PATH=""
+mount_dir=""
+device=""
+
+cleanup() {
+  if [[ -n "${device:-}" ]]; then
+    /usr/bin/hdiutil detach "$device" >/dev/null 2>&1 || true
+  elif [[ -n "${mount_dir:-}" && -d "$mount_dir" ]]; then
+    /usr/bin/hdiutil detach "$mount_dir" >/dev/null 2>&1 || true
+  fi
+
+  if [[ -n "${mount_dir:-}" && -d "$mount_dir" ]]; then
+    /bin/rmdir "$mount_dir" >/dev/null 2>&1 || true
+  fi
+
+  if [[ -n "${DMG_TEMP_DIR:-}" && -d "$DMG_TEMP_DIR" ]]; then
+    rm -rf "$DMG_TEMP_DIR"
+  fi
+}
+
+trap cleanup EXIT
 
 write_info_plist() {
   cat >"$INFO_PLIST" <<PLIST
@@ -135,6 +156,27 @@ end tell
 OSA
 }
 
+create_readwrite_dmg() {
+  local attempt
+  for attempt in 1 2 3; do
+    if /usr/bin/hdiutil create \
+      -volname "$APP_DISPLAY_NAME" \
+      -srcfolder "$DMG_ROOT" \
+      -ov \
+      -format UDRW \
+      -fs HFS+ \
+      "$DMG_RW_PATH" >/dev/null; then
+      return 0
+    fi
+
+    /usr/bin/hdiutil detach "/Volumes/$APP_DISPLAY_NAME" >/dev/null 2>&1 || true
+    rm -f "$DMG_RW_PATH"
+    sleep "$attempt"
+  done
+
+  return 1
+}
+
 rm -rf "$RELEASE_DIR"
 mkdir -p "$APP_MACOS"
 
@@ -153,19 +195,17 @@ xattr -cr "$APP_BUNDLE" >/dev/null 2>&1 || true
   /usr/bin/shasum -a 256 "$ZIP_NAME" >"$ZIP_CHECKSUM_PATH"
 )
 
+DMG_TEMP_DIR="$(mktemp -d /tmp/codex-monitor-release.XXXXXX)"
+DMG_ROOT="$DMG_TEMP_DIR/dmg-root"
+DMG_RW_PATH="$DMG_TEMP_DIR/$ARTIFACT_BASENAME-rw.dmg"
+
 mkdir -p "$DMG_ROOT"
 mkdir -p "$DMG_ROOT/.background"
 cp -R "$APP_BUNDLE" "$DMG_ROOT/"
 ln -s /Applications "$DMG_ROOT/Applications"
 write_dmg_background "$DMG_ROOT/.background/background.png"
 
-/usr/bin/hdiutil create \
-  -volname "$APP_DISPLAY_NAME" \
-  -srcfolder "$DMG_ROOT" \
-  -ov \
-  -format UDRW \
-  -fs HFS+ \
-  "$DMG_RW_PATH" >/dev/null
+create_readwrite_dmg
 
 mount_dir="$(mktemp -d /tmp/codex-monitor-dmg.XXXXXX)"
 device="$(/usr/bin/hdiutil attach -readwrite -noverify -noautoopen -mountpoint "$mount_dir" "$DMG_RW_PATH" | awk '/Apple_HFS/ { print $1; exit }')"
@@ -174,14 +214,15 @@ set_dmg_finder_layout "$mount_dir"
 /bin/sync
 if [[ -n "$device" ]]; then
   /usr/bin/hdiutil detach "$device" >/dev/null
+  device=""
 else
   /usr/bin/hdiutil detach "$mount_dir" >/dev/null
 fi
 /bin/rmdir "$mount_dir"
+mount_dir=""
 
 /usr/bin/hdiutil convert "$DMG_RW_PATH" -format UDZO -o "$DMG_PATH" >/dev/null
 /usr/bin/shasum -a 256 "$DMG_PATH" >"$DMG_CHECKSUM_PATH"
-rm -rf "$DMG_ROOT" "$DMG_RW_PATH"
 
 echo "release artifact: $ZIP_PATH"
 echo "release artifact: $DMG_PATH"
