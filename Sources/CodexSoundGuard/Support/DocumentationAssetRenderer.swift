@@ -4,8 +4,6 @@ import SwiftUI
 
 @MainActor
 enum DocumentationAssetRenderer {
-    private static let renderScale: CGFloat = 4
-
     static func render() throws {
         let outputDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent("docs/assets/screenshots", isDirectory: true)
@@ -38,26 +36,35 @@ enum DocumentationAssetRenderer {
         hostingView.frame = CGRect(origin: .zero, size: size)
         hostingView.appearance = NSAppearance(named: .aqua)
         hostingView.wantsLayer = true
-        hostingView.layer?.contentsScale = renderScale
         hostingView.layoutSubtreeIfNeeded()
 
-        guard let bitmap = NSBitmapImageRep(
-            bitmapDataPlanes: nil,
-            pixelsWide: Int(size.width * renderScale),
-            pixelsHigh: Int(size.height * renderScale),
-            bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
-            isPlanar: false,
-            colorSpaceName: .deviceRGB,
-            bytesPerRow: 0,
-            bitsPerPixel: 0
+        let window = NSWindow(
+            contentRect: CGRect(origin: CGPoint(x: 120, y: 120), size: size),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = hostingView
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = false
+        window.level = .floating
+        window.orderFrontRegardless()
+        window.displayIfNeeded()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+
+        guard let cgImage = CGWindowListCreateImage(
+            .null,
+            .optionIncludingWindow,
+            CGWindowID(window.windowNumber),
+            [.bestResolution]
         ) else {
+            window.orderOut(nil)
             throw RendererError.bitmapCreationFailed
         }
 
-        bitmap.size = size
-        hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
+        window.orderOut(nil)
+        let bitmap = NSBitmapImageRep(cgImage: cgImage)
 
         guard let data = bitmap.representation(using: .png, properties: [:]) else {
             throw RendererError.pngEncodingFailed
