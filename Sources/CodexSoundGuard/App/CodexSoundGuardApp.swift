@@ -33,18 +33,7 @@ private struct MenuBarIconLabel: View {
     let latestUsage: TokenUsageSnapshot?
 
     var body: some View {
-        HStack(spacing: 4) {
-            CodexMark(statusTint: statusTint, size: 17)
-
-            if let usageText {
-                Text(usageText)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-            }
-        }
-        .fixedSize()
-        .accessibilityLabel(accessibilityLabel)
+        CodexUsageMeter(statusTint: statusTint, usage: latestUsage)
     }
 
     private var statusTint: Color {
@@ -62,16 +51,6 @@ private struct MenuBarIconLabel: View {
         }
     }
 
-    private var usageText: String? {
-        UsageFormatter.menuBarSummary(latestUsage)
-    }
-
-    private var accessibilityLabel: String {
-        if let usageText {
-            return "Codex 声音提醒，当前用量 \(usageText)"
-        }
-        return "Codex 声音提醒"
-    }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {

@@ -35,7 +35,7 @@ enum UsageFormatter {
         return tokenCount(value)
     }
 
-    private static func percent(_ value: Double) -> String {
+    static func percent(_ value: Double) -> String {
         "\(Int(max(0, min(value, 100)).rounded()))%"
     }
 }
