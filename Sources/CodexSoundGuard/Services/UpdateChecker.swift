@@ -1,6 +1,6 @@
-import AppKit
+@preconcurrency import AppKit
 import CodexSoundGuardCore
-import Foundation
+@preconcurrency import Foundation
 
 @MainActor
 final class UpdateChecker: ObservableObject {
