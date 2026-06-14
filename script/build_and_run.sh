@@ -106,7 +106,21 @@ restart_launch_agent() {
   launchctl bootstrap "$GUI_DOMAIN" "$LAUNCH_AGENT"
   launchctl enable "$GUI_DOMAIN/$BUNDLE_ID"
   sleep 0.5
-  launchctl kickstart -k "$GUI_DOMAIN/$BUNDLE_ID" >/dev/null 2>&1 || true
+  kickstart_launch_agent
+}
+
+kickstart_launch_agent() {
+  launchctl kickstart -k "$GUI_DOMAIN/$BUNDLE_ID" >/dev/null 2>&1 &
+  local kickstart_pid=$!
+  for _ in {1..20}; do
+    if ! kill -0 "$kickstart_pid" >/dev/null 2>&1; then
+      wait "$kickstart_pid" >/dev/null 2>&1 || true
+      return 0
+    fi
+    sleep 0.25
+  done
+  kill "$kickstart_pid" >/dev/null 2>&1 || true
+  wait "$kickstart_pid" >/dev/null 2>&1 || true
 }
 
 start_installed_app() {
@@ -131,11 +145,14 @@ installed_process_running() {
 }
 
 wait_for_installed_process() {
-  for _ in {1..12}; do
+  local attempt
+  for attempt in {1..16}; do
     if installed_process_running; then
       return 0
     fi
-    launchctl kickstart -k "$GUI_DOMAIN/$BUNDLE_ID" >/dev/null 2>&1 || true
+    if [[ "$attempt" == "1" || "$attempt" == "6" || "$attempt" == "11" ]]; then
+      kickstart_launch_agent
+    fi
     sleep 0.5
   done
   return 1

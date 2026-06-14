@@ -18,8 +18,8 @@ struct MenuBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
-            statusStrip
             usagePanel
+            statusStrip
             soundPanel
             footer
         }
@@ -30,11 +30,9 @@ struct MenuBarView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 11) {
-            CodexMark(statusTint: statusTint, size: 30, showsStatus: false)
-
+        HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Codex 声音提醒")
+                Text("Codex 用量")
                     .font(.headline.weight(.semibold))
                     .lineLimit(1)
                 Text(statusSubheading)
@@ -45,12 +43,19 @@ struct MenuBarView: View {
 
             Spacer(minLength: 8)
 
-            Toggle("", isOn: $monitoringEnabled)
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .onChange(of: monitoringEnabled) { _ in
-                    monitor.applySettings()
-                }
+            VStack(alignment: .trailing, spacing: 4) {
+                Toggle("", isOn: $monitoringEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .onChange(of: monitoringEnabled) { _ in
+                        monitor.applySettings()
+                    }
+
+                Text(monitor.isRunning ? "监听" : "暂停")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
     }
 
@@ -58,7 +63,7 @@ struct MenuBarView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 7) {
                 Circle()
-                    .fill(statusTint)
+                    .fill(Color.primary.opacity(statusOpacity))
                     .frame(width: 7, height: 7)
 
                 Text(statusLine)
@@ -98,18 +103,15 @@ struct MenuBarView: View {
         Surface {
             VStack(alignment: .leading, spacing: 11) {
                 SectionHeader(
-                    title: "Codex 用量",
-                    iconName: "chart.line.uptrend.xyaxis",
+                    title: "剩余额度",
+                    iconName: "gauge.with.dots.needle.50percent",
                     trailing: usageHeaderValue
                 )
 
                 if let usage = monitor.latestUsage {
-                    TokenSummaryRow(usage: usage)
+                    RemainingLimitStack(usage: usage)
 
-                    VStack(spacing: 7) {
-                        RateLimitRow(title: "5 小时窗口", limit: usage.primaryRateLimit, tint: .accentColor)
-                        RateLimitRow(title: "7 天窗口", limit: usage.secondaryRateLimit, tint: .secondary)
-                    }
+                    TokenSummaryRow(usage: usage)
                 } else {
                     EmptyStateLine(iconName: "hourglass", text: "等待 Codex 写入用量事件")
                 }
@@ -121,7 +123,7 @@ struct MenuBarView: View {
         Surface {
             VStack(alignment: .leading, spacing: 10) {
                 SectionHeader(
-                    title: "提醒音",
+                    title: "声音提醒",
                     iconName: "speaker.wave.2",
                     trailing: "\(Int(volume * 100))%"
                 )
@@ -191,7 +193,7 @@ struct MenuBarView: View {
     }
 
     private var statusSubheading: String {
-        monitor.isRunning ? "完成、失败时播放本地声音" : "提醒已暂停，点击开关恢复"
+        monitor.isRunning ? "本地日志用量与任务提醒" : "监听已暂停，点击开关恢复"
     }
 
     private var statusLine: String {
@@ -217,18 +219,18 @@ struct MenuBarView: View {
         }
     }
 
-    private var statusTint: Color {
+    private var statusOpacity: Double {
         guard monitor.isRunning else {
-            return .secondary
+            return 0.30
         }
 
         switch monitor.lastOutcome {
         case .completed:
-            return .green
+            return 0.68
         case .failed:
-            return .red
+            return 1.0
         case nil:
-            return .accentColor
+            return 0.52
         }
     }
 
@@ -307,6 +309,87 @@ private struct EmptyStateLine: View {
     }
 }
 
+private struct RemainingLimitStack: View {
+    let usage: TokenUsageSnapshot
+
+    var body: some View {
+        VStack(spacing: 8) {
+            RemainingLimitRow(title: "5 小时", limit: usage.primaryRateLimit)
+            RemainingLimitRow(title: "7 天", limit: usage.secondaryRateLimit)
+        }
+    }
+}
+
+private struct RemainingLimitRow: View {
+    let title: String
+    let limit: UsageRateLimit?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Text(valueText)
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.primary.opacity(0.12))
+
+                    Capsule()
+                        .fill(Color.primary.opacity(0.72))
+                        .frame(width: proxy.size.width * remainingProgress)
+                }
+            }
+            .frame(height: 5)
+            .help(resetText)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+
+    private var remainingProgress: Double {
+        guard let limit else {
+            return 0
+        }
+        return 1 - (max(0, min(limit.usedPercent, 100)) / 100)
+    }
+
+    private var valueText: String {
+        guard let limit else {
+            return "--"
+        }
+        return "\(UsageFormatter.percent(remainingPercent(limit))) 剩余 · \(resetText)"
+    }
+
+    private var resetText: String {
+        guard let resetDate = limit?.resetsAt else {
+            return "重置 --"
+        }
+        return "重置 \(Self.resetFormatter.string(from: resetDate))"
+    }
+
+    private func remainingPercent(_ limit: UsageRateLimit) -> Double {
+        100 - max(0, min(limit.usedPercent, 100))
+    }
+
+    private static let resetFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+}
+
 private struct TokenSummaryRow: View {
     let usage: TokenUsageSnapshot
 
@@ -343,61 +426,6 @@ private struct TokenMetric: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-}
-
-private struct RateLimitRow: View {
-    let title: String
-    let limit: UsageRateLimit?
-    let tint: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Spacer()
-                Text(valueText)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            ProgressView(value: progressValue, total: 100)
-                .tint(tint)
-                .help(resetText)
-        }
-    }
-
-    private var progressValue: Double {
-        guard let limit else {
-            return 0
-        }
-        return max(0, min(limit.usedPercent, 100))
-    }
-
-    private var valueText: String {
-        guard let limit else {
-            return "--"
-        }
-
-        let percent = limit.usedPercent.rounded()
-        return "\(Int(percent))% · \(resetText)"
-    }
-
-    private var resetText: String {
-        guard let resetDate = limit?.resetsAt else {
-            return "重置 --"
-        }
-        return "重置 \(Self.resetFormatter.string(from: resetDate))"
-    }
-
-    private static let resetFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
 }
 
 private struct SoundRow: View {
