@@ -3,6 +3,8 @@
 [![Swift](https://github.com/whitewooood/codex-extra/actions/workflows/swift.yml/badge.svg)](https://github.com/whitewooood/codex-extra/actions/workflows/swift.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-informational.svg)](LICENSE)
 
+中文 | [English](#english)
+
 一个 macOS 菜单栏工具，用来读取 Codex Desktop 的本地会话日志，显示 token 用量与限额窗口，并在任务完成或失败时播放本地声音。
 
 菜单栏图标会显示两条单色微型剩余额度条：上方为 5 小时窗口，下方为 7 天窗口。下拉面板以 Codex 用量为主，声音提醒作为辅助设置；提醒音不依赖 macOS 通知系统。
@@ -127,5 +129,136 @@ swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
 欢迎提交 issue 和 pull request。开始前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 许可证
+
+MIT. See [LICENSE](LICENSE).
+
+## English
+
+[中文](#codex-usage-meter) | English
+
+Codex Usage Meter is a macOS menu bar app that reads local Codex Desktop session logs, shows token usage and rolling limit windows, and plays local sounds when a task completes or fails.
+
+The menu bar icon displays two monochrome mini remaining-usage bars: the upper bar is the 5-hour window, and the lower bar is the 7-day window. The dropdown panel focuses on Codex usage, with sound alerts as secondary controls. Alerts do not depend on the macOS notification system.
+
+![Menu bar meter preview](docs/assets/menu-bar-meter.svg)
+
+![Menu panel preview](docs/assets/menu-panel.svg)
+
+## Features
+
+- Watches `~/.codex/sessions/**/*.jsonl`.
+- Updates the menu bar usage meter from the latest `token_count` events.
+- Shows recent token usage, total session tokens, context window, and remaining 5-hour / 7-day usage.
+- Plays a completion sound when Codex writes `task_complete`.
+- Plays a failure sound when a failure event is detected, or when the latest assistant message looks failed or blocked.
+- Provides Chinese menu panel labels, toggles, sound previews, audio file pickers, and volume controls.
+- Optionally treats non-zero command exits as failures.
+- Drops progress while paused, so old tasks are not replayed when monitoring resumes.
+
+The command failure heuristic is off by default because Codex often runs exploratory commands; a single non-zero command exit does not necessarily mean the whole task failed.
+
+## Download
+
+Download `CodexUsageMeter-<version>-macOS.zip` from [GitHub Releases](https://github.com/whitewooood/codex-extra/releases).
+
+Release artifacts are ad-hoc signed and not Apple notarized yet. macOS may warn that the developer cannot be verified. See [docs/SIGNING.md](docs/SIGNING.md) for details.
+
+## Requirements
+
+- macOS 13 or newer.
+- Xcode Command Line Tools.
+- Codex Desktop running and writing local session logs.
+
+## Quick Start
+
+```bash
+./script/build_and_run.sh
+```
+
+The script builds, installs, and launches `~/Applications/Codex Usage Meter.app`. If the login item is already installed, Run restarts the installed app through launchd so there is no leftover development process from `dist`. You can also start it with the Run button in Codex Desktop.
+
+See [docs/INSTALL.md](docs/INSTALL.md) for more installation options.
+
+## Testing
+
+```bash
+swift test
+```
+
+Strict concurrency checks:
+
+```bash
+swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+```
+
+## Packaging
+
+```bash
+./script/package_release.sh
+```
+
+Release artifacts are written to `dist/release/`. See [docs/RELEASING.md](docs/RELEASING.md) for the release process.
+
+## Install as a Persistent Menu Bar App
+
+Install to the current user's Applications directory:
+
+```bash
+./script/build_and_run.sh --install
+```
+
+Install a login item so the app starts after sign-in:
+
+```bash
+./script/build_and_run.sh --install-login-item
+```
+
+Remove the login item:
+
+```bash
+./script/build_and_run.sh --uninstall-login-item
+```
+
+The login item uses `~/Library/LaunchAgents/com.whitewood.codex-usage-meter.plist` and runs `~/Applications/Codex Usage Meter.app/Contents/MacOS/CodexSoundGuard` directly. It does not modify system-level directories.
+
+## Default Sounds
+
+- Completion: uses `~/Library/Sounds/codex-notification.wav` first, then falls back to the system `Glass.aiff`.
+- Failure: uses the system `Basso.aiff`.
+
+You can choose custom audio files from the menu panel.
+
+## Usage Display
+
+Usage data comes from local Codex JSONL `token_count` events, including:
+
+- Total tokens for the current session.
+- Most recent token usage.
+- Model context window.
+- Usage percentages and reset times for the 5-hour and 7-day windows.
+
+This is not an official stable Codex API and it is not a cloud billing lookup. If Codex Desktop changes its local log format, the app may need to be updated.
+
+## Privacy
+
+This tool only reads local Codex JSONL session logs. It does not upload data or call a cloud billing API. Sound settings and monitoring preferences are stored in the current user's `UserDefaults`.
+
+See [docs/PRIVACY.md](docs/PRIVACY.md) for details.
+
+## Configuration
+
+Sound, log directory, and preference details are documented in [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+
+## Failure Classification
+
+The app prefers explicit failure events from Codex logs. If no explicit failure event exists, it checks the latest assistant message. It currently recognizes phrases such as "未能", "无法", "受阻", "超时", "中断", "被取消", "blocked", "timed out", and "aborted", while avoiding common negative phrases like "没有失败", "没有报错", and "no error".
+
+This is still a local adaptation of private Codex JSONL logs, not an official stable Codex API. The menu panel shows the latest detected event to help verify whether the current Codex Desktop log format is still recognized.
+
+## Contributing
+
+Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before getting started.
+
+## License
 
 MIT. See [LICENSE](LICENSE).
