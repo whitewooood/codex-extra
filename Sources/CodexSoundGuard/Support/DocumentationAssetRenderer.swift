@@ -4,6 +4,8 @@ import SwiftUI
 
 @MainActor
 enum DocumentationAssetRenderer {
+    private static let renderScale: CGFloat = 4
+
     static func render() throws {
         let outputDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent("docs/assets/screenshots", isDirectory: true)
@@ -21,18 +23,40 @@ enum DocumentationAssetRenderer {
             size: CGSize(width: 384, height: 640),
             to: outputDirectory.appendingPathComponent("menu-panel.png")
         )
+        try render(
+            MenuBarView()
+                .environmentObject(monitor)
+                .frame(width: 384, height: 330, alignment: .top)
+                .clipped(),
+            size: CGSize(width: 384, height: 330),
+            to: outputDirectory.appendingPathComponent("menu-panel-usage.png")
+        )
     }
 
     private static func render<V: View>(_ view: V, size: CGSize, to url: URL) throws {
-        let hostingView = NSHostingView(rootView: view)
+        let hostingView = NSHostingView(rootView: view.environment(\.colorScheme, .light))
         hostingView.frame = CGRect(origin: .zero, size: size)
+        hostingView.appearance = NSAppearance(named: .aqua)
         hostingView.wantsLayer = true
+        hostingView.layer?.contentsScale = renderScale
         hostingView.layoutSubtreeIfNeeded()
 
-        guard let bitmap = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(size.width * renderScale),
+            pixelsHigh: Int(size.height * renderScale),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
             throw RendererError.bitmapCreationFailed
         }
 
+        bitmap.size = size
         hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
 
         guard let data = bitmap.representation(using: .png, properties: [:]) else {
