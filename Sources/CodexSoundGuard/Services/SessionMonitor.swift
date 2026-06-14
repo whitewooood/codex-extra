@@ -11,6 +11,7 @@ final class SessionMonitor: ObservableObject {
     @Published private(set) var lastOutcome: TurnOutcome?
     @Published private(set) var lastEventStatus = "尚未识别到 Codex 事件"
     @Published private(set) var recognizedEventCount = 0
+    @Published private(set) var latestUsage: TokenUsageSnapshot?
 
     private let soundPlayer = SoundPlayer()
     private let logger = Logger(subsystem: "com.whitewood.codex-sound-guard", category: "monitor")
@@ -298,6 +299,8 @@ final class SessionMonitor: ObservableObject {
             var turn = turns[key] ?? TurnAccumulator()
             turn.hasCommandFailure = true
             turns[key] = turn
+        case .tokenCount(let usage):
+            latestUsage = usage
         case .taskComplete:
             let key = eventTurnKey(path: path, event: event)
             let turn = turns[key] ?? TurnAccumulator()
@@ -385,6 +388,10 @@ final class SessionMonitor: ObservableObject {
             currentTurnIDByPath.removeValue(forKey: path)
         }
 
+        if let latestUsage = snapshot.latestUsage {
+            self.latestUsage = latestUsage
+        }
+
         if !snapshot.turnsByID.isEmpty {
             logger.info("Rebuilt active turn context for \(path, privacy: .public)")
         }
@@ -449,6 +456,8 @@ private extension SessionEventKind {
             return "识别到失败事件"
         case .commandExit:
             return "识别到命令结果"
+        case .tokenCount:
+            return "识别到用量"
         case .ignored:
             return "忽略事件"
         }

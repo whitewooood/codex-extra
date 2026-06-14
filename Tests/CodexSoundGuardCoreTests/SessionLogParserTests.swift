@@ -40,6 +40,22 @@ final class SessionLogParserTests: XCTestCase {
         XCTAssertEqual(SessionLogParser.parseLine(line)?.kind, .commandExit(code: 128))
     }
 
+    func testParsesTokenCountUsage() {
+        let line = #"{"timestamp":"2026-06-14T12:00:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":1200,"cached_input_tokens":300,"output_tokens":80,"reasoning_output_tokens":20,"total_tokens":1300},"last_token_usage":{"input_tokens":200,"cached_input_tokens":50,"output_tokens":30,"reasoning_output_tokens":10,"total_tokens":230},"model_context_window":258400},"rate_limits":{"primary":{"used_percent":37.5,"window_minutes":300,"resets_at":1781450000},"secondary":{"used_percent":12.0,"window_minutes":10080,"resets_at":1782000000},"credits":{"has_credits":false,"unlimited":false,"balance":"0"}}}}"#
+
+        guard case .tokenCount(let usage) = SessionLogParser.parseLine(line)?.kind else {
+            return XCTFail("Expected token count event")
+        }
+
+        XCTAssertEqual(usage.total.totalTokens, 1300)
+        XCTAssertEqual(usage.total.cachedInputTokens, 300)
+        XCTAssertEqual(usage.last.totalTokens, 230)
+        XCTAssertEqual(usage.modelContextWindow, 258400)
+        XCTAssertEqual(usage.primaryRateLimit?.usedPercent, 37.5)
+        XCTAssertEqual(usage.secondaryRateLimit?.windowMinutes, 10080)
+        XCTAssertEqual(usage.credits?.balance, "0")
+    }
+
     func testClassifiesMessageFailure() {
         let turn = TurnAccumulator(latestAssistantMessage: "我未能完成这个任务。")
 

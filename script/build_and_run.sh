@@ -72,6 +72,7 @@ install_app() {
   mkdir -p "$INSTALL_DIR"
   rm -rf "$INSTALL_BUNDLE"
   cp -R "$APP_BUNDLE" "$INSTALL_BUNDLE"
+  xattr -cr "$INSTALL_BUNDLE" >/dev/null 2>&1 || true
   echo "installed: $INSTALL_BUNDLE"
 }
 

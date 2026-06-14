@@ -50,6 +50,11 @@ public enum SessionLogParser {
             return SessionEvent(kind: .taskStarted, timestamp: timestamp, turnID: turnID)
         case "task_complete":
             return SessionEvent(kind: .taskComplete, timestamp: timestamp, turnID: turnID)
+        case "token_count":
+            if let usage = parseTokenUsageSnapshot(payload: payload) {
+                return SessionEvent(kind: .tokenCount(usage), timestamp: timestamp, turnID: turnID)
+            }
+            return SessionEvent(kind: .ignored, timestamp: timestamp, turnID: turnID)
         case "agent_message":
             if let message = payload["message"] as? String {
                 return SessionEvent(kind: .assistantMessage(message), timestamp: timestamp, turnID: turnID)
@@ -85,6 +90,69 @@ public enum SessionLogParser {
         return SessionEvent(kind: .ignored, timestamp: timestamp, turnID: turnID)
     }
 
+    private static func parseTokenUsageSnapshot(payload: [String: Any]) -> TokenUsageSnapshot? {
+        guard
+            let info = payload["info"] as? [String: Any],
+            let totalValue = info["total_token_usage"] as? [String: Any],
+            let lastValue = info["last_token_usage"] as? [String: Any],
+            let total = parseTokenUsage(totalValue),
+            let last = parseTokenUsage(lastValue)
+        else {
+            return nil
+        }
+
+        let rateLimits = payload["rate_limits"] as? [String: Any]
+        let creditsValue = rateLimits?["credits"] as? [String: Any]
+
+        return TokenUsageSnapshot(
+            total: total,
+            last: last,
+            modelContextWindow: intValue(info["model_context_window"]),
+            primaryRateLimit: parseRateLimit(rateLimits?["primary"] as? [String: Any]),
+            secondaryRateLimit: parseRateLimit(rateLimits?["secondary"] as? [String: Any]),
+            credits: parseCredits(creditsValue)
+        )
+    }
+
+    private static func parseTokenUsage(_ value: [String: Any]) -> TokenUsage? {
+        guard let totalTokens = intValue(value["total_tokens"]) else {
+            return nil
+        }
+
+        return TokenUsage(
+            inputTokens: intValue(value["input_tokens"]) ?? 0,
+            cachedInputTokens: intValue(value["cached_input_tokens"]) ?? 0,
+            outputTokens: intValue(value["output_tokens"]) ?? 0,
+            reasoningOutputTokens: intValue(value["reasoning_output_tokens"]) ?? 0,
+            totalTokens: totalTokens
+        )
+    }
+
+    private static func parseRateLimit(_ value: [String: Any]?) -> UsageRateLimit? {
+        guard let value, let usedPercent = doubleValue(value["used_percent"]) else {
+            return nil
+        }
+
+        let resetTimestamp = doubleValue(value["resets_at"])
+        return UsageRateLimit(
+            usedPercent: usedPercent,
+            windowMinutes: intValue(value["window_minutes"]),
+            resetsAt: resetTimestamp.map { Date(timeIntervalSince1970: $0) }
+        )
+    }
+
+    private static func parseCredits(_ value: [String: Any]?) -> UsageCredits? {
+        guard let value else {
+            return nil
+        }
+
+        return UsageCredits(
+            hasCredits: value["has_credits"] as? Bool,
+            unlimited: value["unlimited"] as? Bool,
+            balance: stringValue(value["balance"])
+        )
+    }
+
     private static func assistantText(from payload: [String: Any]) -> String? {
         guard let content = payload["content"] as? [[String: Any]] else {
             return nil
@@ -116,6 +184,42 @@ public enum SessionLogParser {
         }
 
         return Int(output[codeRange])
+    }
+
+    private static func intValue(_ value: Any?) -> Int? {
+        if let value = value as? Int {
+            return value
+        }
+        if let value = value as? NSNumber {
+            return value.intValue
+        }
+        if let value = value as? String {
+            return Int(value)
+        }
+        return nil
+    }
+
+    private static func doubleValue(_ value: Any?) -> Double? {
+        if let value = value as? Double {
+            return value
+        }
+        if let value = value as? NSNumber {
+            return value.doubleValue
+        }
+        if let value = value as? String {
+            return Double(value)
+        }
+        return nil
+    }
+
+    private static func stringValue(_ value: Any?) -> String? {
+        if let value = value as? String {
+            return value
+        }
+        if let value = value as? NSNumber {
+            return value.stringValue
+        }
+        return nil
     }
 
     private static func parseDate(_ value: String?) -> Date? {

@@ -1,4 +1,5 @@
 import AppKit
+import CodexSoundGuardCore
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -17,13 +18,13 @@ struct MenuBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
+            usagePanel
             diagnostics
-            reminderGrid
-            preferencesPanel
+            soundPanel
             footer
         }
         .padding(14)
-        .frame(width: 388)
+        .frame(width: 392)
         .background(.regularMaterial)
         .controlSize(.small)
     }
@@ -126,41 +127,48 @@ struct MenuBarView: View {
         }
     }
 
-    private var reminderGrid: some View {
-        HStack(alignment: .top, spacing: 10) {
-            ReminderTile(
-                title: "完成",
-                detail: "任务结束播放",
-                iconName: "checkmark.circle.fill",
-                tint: .green,
-                isEnabled: $completionSoundEnabled,
-                soundName: shortName(completionSoundPath),
-                testLabel: "试听完成提醒",
-                chooseLabel: "选择完成提醒声音",
-                testAction: { monitor.testCompletionSound() },
-                chooseAction: { chooseSound(defaultKey: AppDefaults.Key.completionSoundPath) }
-            )
-
-            ReminderTile(
-                title: "失败",
-                detail: "含受阻推断",
-                iconName: "exclamationmark.triangle.fill",
-                tint: .red,
-                isEnabled: $failureSoundEnabled,
-                soundName: shortName(failureSoundPath),
-                testLabel: "试听失败提醒",
-                chooseLabel: "选择失败提醒声音",
-                testAction: { monitor.testFailureSound() },
-                chooseAction: { chooseSound(defaultKey: AppDefaults.Key.failureSoundPath) }
-            )
-        }
-    }
-
-    private var preferencesPanel: some View {
+    private var usagePanel: some View {
         Surface {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
-                    Label("策略与音量", systemImage: "slider.horizontal.3")
+                    Label("Codex 用量", systemImage: "chart.bar.xaxis")
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Text(usageHeaderValue)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+
+                if let usage = monitor.latestUsage {
+                    HStack(spacing: 8) {
+                        UsageNumber(title: "累计", value: formatTokenCount(usage.total.totalTokens), iconName: "sum", tint: .blue)
+                        UsageNumber(title: "最近", value: formatTokenCount(usage.last.totalTokens), iconName: "bolt.fill", tint: .green)
+                        UsageNumber(title: "上下文", value: formatContextWindow(usage.modelContextWindow), iconName: "square.stack.3d.up", tint: .purple)
+                    }
+
+                    VStack(spacing: 8) {
+                        RateLimitRow(title: "5 小时窗口", limit: usage.primaryRateLimit, tint: .blue)
+                        RateLimitRow(title: "7 天窗口", limit: usage.secondaryRateLimit, tint: .purple)
+                    }
+                } else {
+                    HStack(spacing: 10) {
+                        Image(systemName: "hourglass")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Text("等待 Codex 写入用量事件")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private var soundPanel: some View {
+        Surface {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Label("提醒音", systemImage: "speaker.wave.2.fill")
                         .font(.subheadline.weight(.semibold))
                     Spacer()
                     Text("\(Int(volume * 100))%")
@@ -170,18 +178,36 @@ struct MenuBarView: View {
 
                 Slider(value: $volume, in: 0...1)
 
+                SoundRow(
+                    title: "完成",
+                    iconName: "checkmark.circle.fill",
+                    tint: .green,
+                    isEnabled: $completionSoundEnabled,
+                    soundName: shortName(completionSoundPath),
+                    testLabel: "试听完成提醒",
+                    chooseLabel: "选择完成提醒声音",
+                    testAction: { monitor.testCompletionSound() },
+                    chooseAction: { chooseSound(defaultKey: AppDefaults.Key.completionSoundPath) }
+                )
+
+                SoundRow(
+                    title: "失败",
+                    iconName: "exclamationmark.triangle.fill",
+                    tint: .red,
+                    isEnabled: $failureSoundEnabled,
+                    soundName: shortName(failureSoundPath),
+                    testLabel: "试听失败提醒",
+                    chooseLabel: "选择失败提醒声音",
+                    testAction: { monitor.testFailureSound() },
+                    chooseAction: { chooseSound(defaultKey: AppDefaults.Key.failureSoundPath) }
+                )
+
                 Divider()
 
                 Toggle(isOn: $commandFailureHeuristicEnabled) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("命令非 0 退出也算失败")
-                            .font(.subheadline.weight(.semibold))
-                            .lineLimit(1)
-                        Text("适合让 Codex 执行命令、测试或构建时使用")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
+                    Text("命令非 0 退出也算失败")
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
                 }
                 .toggleStyle(.switch)
             }
@@ -214,6 +240,13 @@ struct MenuBarView: View {
 
     private var statusSubheading: String {
         monitor.isRunning ? "完成、失败时播放本地声音" : "提醒已暂停，点击开关恢复"
+    }
+
+    private var usageHeaderValue: String {
+        guard let usage = monitor.latestUsage else {
+            return "--"
+        }
+        return "最近 \(formatTokenCount(usage.last.totalTokens))"
     }
 
     private var lastOutcomeLabel: String {
@@ -268,6 +301,23 @@ struct MenuBarView: View {
 
     private func shortName(_ path: String) -> String {
         URL(fileURLWithPath: path).lastPathComponent
+    }
+
+    private func formatTokenCount(_ value: Int) -> String {
+        if value >= 1_000_000 {
+            return String(format: "%.1fM", Double(value) / 1_000_000)
+        }
+        if value >= 1_000 {
+            return String(format: "%.1fK", Double(value) / 1_000)
+        }
+        return "\(value)"
+    }
+
+    private func formatContextWindow(_ value: Int?) -> String {
+        guard let value else {
+            return "--"
+        }
+        return formatTokenCount(value)
     }
 }
 
@@ -337,9 +387,93 @@ private struct DiagnosticMetric: View {
     }
 }
 
-private struct ReminderTile: View {
+private struct UsageNumber: View {
     let title: String
-    let detail: String
+    let value: String
+    let iconName: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: iconName)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(value)
+                    .font(.subheadline.monospacedDigit().weight(.semibold))
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
+}
+
+private struct RateLimitRow: View {
+    let title: String
+    let limit: UsageRateLimit?
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer()
+                Text(valueText)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(tint)
+                    .lineLimit(1)
+            }
+
+            ProgressView(value: progressValue, total: 100)
+                .tint(tint)
+                .help(resetText)
+        }
+    }
+
+    private var progressValue: Double {
+        guard let limit else {
+            return 0
+        }
+        return max(0, min(limit.usedPercent, 100))
+    }
+
+    private var valueText: String {
+        guard let limit else {
+            return "--"
+        }
+
+        let percent = limit.usedPercent.rounded()
+        return "\(Int(percent))% · \(resetText)"
+    }
+
+    private var resetText: String {
+        guard let resetDate = limit?.resetsAt else {
+            return "重置 --"
+        }
+        return "重置 \(Self.resetFormatter.string(from: resetDate))"
+    }
+
+    private static let resetFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+}
+
+private struct SoundRow: View {
+    let title: String
     let iconName: String
     let tint: Color
     @Binding var isEnabled: Bool
@@ -350,68 +484,60 @@ private struct ReminderTile: View {
     let chooseAction: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack(alignment: .top, spacing: 8) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(tint.opacity(isEnabled ? 0.16 : 0.08))
-                    Image(systemName: iconName)
-                        .font(.system(size: 17, weight: .semibold))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(isEnabled ? tint : .secondary)
-                }
-                .frame(width: 32, height: 32)
+        VStack(spacing: 7) {
+            HStack(spacing: 8) {
+                Image(systemName: iconName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(isEnabled ? tint : .secondary)
+                    .frame(width: 18)
 
-                Spacer(minLength: 4)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+
+                Spacer()
 
                 Toggle("", isOn: $isEnabled)
                     .labelsHidden()
                     .toggleStyle(.switch)
             }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(title)提醒")
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            SoundPill(soundName: soundName)
-
             HStack(spacing: 7) {
-                Button(action: testAction) {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 11, weight: .semibold))
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(IconButtonStyle(tint: tint))
-                .help(testLabel)
+                SoundPill(soundName: soundName)
 
-                Button(action: chooseAction) {
-                    Image(systemName: "music.note.list")
-                        .font(.system(size: 11, weight: .semibold))
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(IconButtonStyle(tint: .secondary))
-                .help(chooseLabel)
-
-                Spacer(minLength: 0)
+                SoundIconButton(iconName: "play.fill", tint: tint, help: testLabel, action: testAction)
+                SoundIconButton(iconName: "music.note.list", tint: .secondary, help: chooseLabel, action: chooseAction)
             }
         }
-        .padding(12)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(.quaternary.opacity(0.7), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(borderColor, lineWidth: 1)
         }
     }
 
     private var borderColor: Color {
         isEnabled ? tint.opacity(0.30) : Color.secondary.opacity(0.18)
+    }
+}
+
+private struct SoundIconButton: View {
+    let iconName: String
+    let tint: Color
+    let help: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: iconName)
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 24, height: 24)
+        }
+        .buttonStyle(IconButtonStyle(tint: tint))
+        .help(help)
     }
 }
 

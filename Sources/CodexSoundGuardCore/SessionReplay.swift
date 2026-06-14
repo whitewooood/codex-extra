@@ -3,10 +3,12 @@ import Foundation
 public struct SessionReplaySnapshot: Equatable {
     public let currentTurnID: String?
     public let turnsByID: [String: TurnAccumulator]
+    public let latestUsage: TokenUsageSnapshot?
 
-    public init(currentTurnID: String?, turnsByID: [String: TurnAccumulator]) {
+    public init(currentTurnID: String?, turnsByID: [String: TurnAccumulator], latestUsage: TokenUsageSnapshot? = nil) {
         self.currentTurnID = currentTurnID
         self.turnsByID = turnsByID
+        self.latestUsage = latestUsage
     }
 }
 
@@ -14,6 +16,7 @@ public enum SessionReplay {
     public static func rebuild(from lines: [String]) -> SessionReplaySnapshot {
         var currentTurnID: String?
         var turnsByID: [String: TurnAccumulator] = [:]
+        var latestUsage: TokenUsageSnapshot?
         var implicitTurnCounter = 0
 
         for line in lines {
@@ -56,12 +59,14 @@ public enum SessionReplay {
                 if event.turnID == nil || event.turnID == currentTurnID {
                     currentTurnID = nil
                 }
+            case .tokenCount(let usage):
+                latestUsage = usage
             case .ignored:
                 break
             }
         }
 
-        return SessionReplaySnapshot(currentTurnID: currentTurnID, turnsByID: turnsByID)
+        return SessionReplaySnapshot(currentTurnID: currentTurnID, turnsByID: turnsByID, latestUsage: latestUsage)
     }
 
     private static func replayTurnID(for event: SessionEvent, currentTurnID: String?) -> String {

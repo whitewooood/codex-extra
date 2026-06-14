@@ -30,4 +30,16 @@ final class SessionReplayTests: XCTestCase {
         XCTAssertNil(snapshot.currentTurnID)
         XCTAssertTrue(snapshot.turnsByID.isEmpty)
     }
+
+    func testRebuildsLatestTokenUsage() {
+        let lines = [
+            #"{"timestamp":"2026-06-14T12:00:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10,"reasoning_output_tokens":0,"total_tokens":110},"last_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10,"reasoning_output_tokens":0,"total_tokens":110}}}}"#,
+            #"{"timestamp":"2026-06-14T12:01:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":300,"cached_input_tokens":40,"output_tokens":30,"reasoning_output_tokens":5,"total_tokens":335},"last_token_usage":{"input_tokens":200,"cached_input_tokens":20,"output_tokens":20,"reasoning_output_tokens":5,"total_tokens":225}}}}"#
+        ]
+
+        let snapshot = SessionReplay.rebuild(from: lines)
+
+        XCTAssertEqual(snapshot.latestUsage?.total.totalTokens, 335)
+        XCTAssertEqual(snapshot.latestUsage?.last.totalTokens, 225)
+    }
 }
