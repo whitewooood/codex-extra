@@ -121,7 +121,7 @@ let hintAttributes: [NSAttributedString.Key: Any] = [
     .font: NSFont.systemFont(ofSize: 12, weight: .regular),
     .foregroundColor: NSColor.tertiaryLabelColor
 ]
-"本工具只读取本机 Codex 日志，不上传数据".draw(at: NSPoint(x: 40, y: 44), withAttributes: hintAttributes)
+"本机解析 Codex 日志；更新检查只请求 GitHub".draw(at: NSPoint(x: 40, y: 44), withAttributes: hintAttributes)
 
 image.unlockFocus()
 

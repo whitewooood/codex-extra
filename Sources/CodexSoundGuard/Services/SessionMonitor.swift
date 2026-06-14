@@ -25,7 +25,7 @@ final class SessionMonitor: ObservableObject {
     private var latestUserMessageByPath: [String: String] = [:]
     private var cachedDiscoveredFiles: [SessionFileCandidate] = []
     private var lastFullDiscoveryAt: Date?
-    private var usageSamples: [UsageSample] = []
+    private var usageSamples: [CodexSoundGuardCore.UsageSample] = []
     private var sessionUsageByPath: [String: SessionUsageSummary] = [:]
     private var primed = false
     private let startedAt = Date()
@@ -371,7 +371,12 @@ final class SessionMonitor: ObservableObject {
     private func play(outcome: TurnOutcome, force: Bool = false) -> SoundPlaybackResult {
         let defaults = UserDefaults.standard
         let volume = defaults.double(forKey: AppDefaults.Key.volume)
-        guard force || !Self.isQuietHoursActive(defaults: defaults, date: Date()) else {
+        let quietHours = QuietHoursPolicy(
+            enabled: defaults.bool(forKey: AppDefaults.Key.quietHoursEnabled),
+            startMinute: defaults.integer(forKey: AppDefaults.Key.quietHoursStartMinute),
+            endMinute: defaults.integer(forKey: AppDefaults.Key.quietHoursEndMinute)
+        )
+        guard force || !quietHours.isActive(at: Date()) else {
             return .suppressedByQuietHours
         }
 
@@ -390,27 +395,6 @@ final class SessionMonitor: ObservableObject {
             soundPlayer.play(path: path, volume: volume)
         }
         return .played
-    }
-
-    private static func isQuietHoursActive(defaults: UserDefaults, date: Date) -> Bool {
-        guard defaults.bool(forKey: AppDefaults.Key.quietHoursEnabled) else {
-            return false
-        }
-
-        let startMinute = defaults.integer(forKey: AppDefaults.Key.quietHoursStartMinute)
-        let endMinute = defaults.integer(forKey: AppDefaults.Key.quietHoursEndMinute)
-        guard startMinute != endMinute else {
-            return true
-        }
-
-        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
-        let currentMinute = (components.hour ?? 0) * 60 + (components.minute ?? 0)
-
-        if startMinute < endMinute {
-            return currentMinute >= startMinute && currentMinute < endMinute
-        }
-
-        return currentMinute >= startMinute || currentMinute < endMinute
     }
 
     private func shouldBootstrapContext(modifiedAt: Date) -> Bool {
@@ -477,7 +461,7 @@ final class SessionMonitor: ObservableObject {
         }
 
         if !snapshot.turnsByID.isEmpty {
-            logger.info("Rebuilt active turn context for \(path, privacy: .public)")
+            logger.info("Rebuilt active turn context for \(path, privacy: .private)")
         }
     }
 
@@ -497,106 +481,28 @@ final class SessionMonitor: ObservableObject {
     }
 
     private func recordUsage(_ usage: TokenUsageSnapshot, timestamp: Date, path: String, title: String? = nil) {
-        usageSamples.append(UsageSample(timestamp: timestamp, path: path, tokens: max(0, usage.last.totalTokens)))
+        usageSamples.append(CodexSoundGuardCore.UsageSample(timestamp: timestamp, path: path, tokens: max(0, usage.last.totalTokens)))
         if usageSamples.count > maxUsageSamples {
             usageSamples.removeFirst(usageSamples.count - maxUsageSamples)
         }
 
         let cutoff = Date().addingTimeInterval(-trendLookback)
         usageSamples.removeAll { $0.timestamp < cutoff }
-        usageTrend = buildTrend(from: usageSamples, now: Date())
+        usageTrend = UsageAnalytics.buildTrend(from: usageSamples, now: Date())
         updateSessionUsage(usage, timestamp: timestamp, path: path, title: title)
     }
 
     private func updateSessionUsage(_ usage: TokenUsageSnapshot, timestamp: Date, path: String, title: String? = nil) {
         let existing = sessionUsageByPath[path]
-        sessionUsageByPath[path] = SessionUsageSummary(
+        sessionUsageByPath[path] = UsageAnalytics.makeSessionSummary(
+            usage: usage,
+            timestamp: timestamp,
             path: path,
-            title: sessionTitle(title, fallbackPath: path, existing: existing?.title),
-            fileName: sessionFileName(path),
-            totalTokens: usage.total.totalTokens,
-            lastTokens: usage.last.totalTokens,
-            updatedAt: timestamp
+            title: title,
+            existingTitle: existing?.title
         )
 
-        sessionUsageRankings = Array(sessionUsageByPath.values
-            .sorted {
-                if $0.totalTokens == $1.totalTokens {
-                    return $0.updatedAt > $1.updatedAt
-                }
-                return $0.totalTokens > $1.totalTokens
-            }
-            .prefix(maxSessionRankings))
-    }
-
-    private func buildTrend(from samples: [UsageSample], now: Date) -> [UsageTrendPoint] {
-        let calendar = Calendar.current
-        let currentHour = calendar.dateInterval(of: .hour, for: now)?.start ?? now
-        let starts = (0..<6).compactMap { offset in
-            calendar.date(byAdding: .hour, value: offset - 5, to: currentHour)
-        }
-        var totals = Dictionary(uniqueKeysWithValues: starts.map { ($0, 0) })
-
-        for sample in samples {
-            guard let hour = calendar.dateInterval(of: .hour, for: sample.timestamp)?.start,
-                  totals[hour] != nil else {
-                continue
-            }
-            totals[hour, default: 0] += sample.tokens
-        }
-
-        return starts.map { start in
-            UsageTrendPoint(hourStart: start, tokens: totals[start, default: 0])
-        }
-    }
-
-    private func sessionFileName(_ path: String) -> String {
-        let url = URL(fileURLWithPath: path)
-        let fileName = url.deletingPathExtension().lastPathComponent
-        if !fileName.isEmpty {
-            return fileName
-        }
-        return url.lastPathComponent
-    }
-
-    private func sessionTitle(_ message: String?, fallbackPath path: String, existing: String?) -> String {
-        if let title = message.flatMap(Self.displayTitle(from:)) {
-            return title
-        }
-
-        if let existing, existing != sessionFileName(path) {
-            return existing
-        }
-
-        return sessionFileName(path)
-    }
-
-    private static func displayTitle(from message: String) -> String? {
-        var text = message
-            .replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
-            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        let ignoredPrefixes = [
-            "# AGENTS.md instructions",
-            "Codex Security file-review shard",
-            "Filesystem sandboxing defines",
-            "You are Codex"
-        ]
-        guard !ignoredPrefixes.contains(where: { text.hasPrefix($0) }) else {
-            return nil
-        }
-
-        let sentenceTerminators: Set<Character> = ["。", "！", "？", "\n"]
-        if let firstSentenceEnd = text.firstIndex(where: { sentenceTerminators.contains($0) }) {
-            text = String(text[...firstSentenceEnd])
-        }
-
-        if text.count > 42 {
-            text = String(text.prefix(42)).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
-        }
-
-        return text.isEmpty ? nil : text
+        sessionUsageRankings = UsageAnalytics.rankedSessions(Array(sessionUsageByPath.values), limit: maxSessionRankings)
     }
 
     private static func previewTrend() -> [UsageTrendPoint] {
@@ -646,34 +552,6 @@ final class SessionMonitor: ObservableObject {
         formatter.dateFormat = "HH:mm:ss"
         return formatter
     }()
-}
-
-struct UsageTrendPoint: Identifiable, Equatable {
-    let hourStart: Date
-    let tokens: Int
-
-    var id: Date {
-        hourStart
-    }
-}
-
-struct SessionUsageSummary: Identifiable, Equatable {
-    let path: String
-    let title: String
-    let fileName: String
-    let totalTokens: Int
-    let lastTokens: Int
-    let updatedAt: Date
-
-    var id: String {
-        path
-    }
-}
-
-private struct UsageSample {
-    let timestamp: Date
-    let path: String
-    let tokens: Int
 }
 
 private enum SoundPlaybackResult {

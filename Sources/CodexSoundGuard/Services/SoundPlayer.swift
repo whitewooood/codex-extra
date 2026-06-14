@@ -10,14 +10,14 @@ final class SoundPlayer {
     func play(path: String, volume: Double) {
         let sound = makeSound(path: path)
         guard let sound else {
-            logger.warning("Sound unavailable, falling back to beep: \(path, privacy: .public)")
+            logger.warning("Sound unavailable, falling back to beep: \(path, privacy: .private)")
             NSSound.beep()
             return
         }
 
         sound.volume = Float(max(0, min(volume, 1)))
         activeSounds.append(sound)
-        logger.info("Playing sound: \(path, privacy: .public)")
+        logger.info("Playing sound: \(path, privacy: .private)")
         sound.play()
 
         let lifetime = max(sound.duration, 0.5) + 1

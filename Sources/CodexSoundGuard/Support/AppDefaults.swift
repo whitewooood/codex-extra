@@ -63,7 +63,7 @@ enum AppDefaults {
             Key.quietHoursEnabled: false,
             Key.quietHoursStartMinute: 22 * 60,
             Key.quietHoursEndMinute: 8 * 60,
-            Key.automaticUpdateChecksEnabled: true,
+            Key.automaticUpdateChecksEnabled: false,
             Key.lastUpdateCheckAt: 0.0,
             Key.ignoredUpdateVersion: ""
         ])

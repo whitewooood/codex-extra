@@ -1,4 +1,5 @@
 import AppKit
+import CodexSoundGuardCore
 import Foundation
 
 @MainActor
@@ -189,44 +190,6 @@ struct GitHubRelease: Decodable, Equatable {
         case body
         case htmlURL = "html_url"
         case publishedAt = "published_at"
-    }
-}
-
-struct AppVersion: Comparable, CustomStringConvertible, Equatable {
-    let rawValue: String
-    private let components: [Int]
-
-    init(_ rawValue: String) {
-        let normalized = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingPrefix("v")
-        self.rawValue = normalized.isEmpty ? "0.0.0" : normalized
-        self.components = self.rawValue
-            .split(separator: "-", maxSplits: 1, omittingEmptySubsequences: true)
-            .first?
-            .split(separator: ".")
-            .map { Int($0) ?? 0 } ?? [0]
-    }
-
-    var description: String {
-        rawValue
-    }
-
-    static func < (lhs: AppVersion, rhs: AppVersion) -> Bool {
-        let count = max(lhs.components.count, rhs.components.count)
-        for index in 0..<count {
-            let left = index < lhs.components.count ? lhs.components[index] : 0
-            let right = index < rhs.components.count ? rhs.components[index] : 0
-            if left != right {
-                return left < right
-            }
-        }
-        return false
-    }
-}
-
-private extension String {
-    func trimmingPrefix(_ prefix: String) -> String {
-        hasPrefix(prefix) ? String(dropFirst(prefix.count)) : self
     }
 }
 

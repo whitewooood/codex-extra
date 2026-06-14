@@ -10,6 +10,7 @@ enum DocumentationAssetRenderer {
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
 
         let monitor = SessionMonitor.documentationPreview()
+        let updateChecker = UpdateChecker(currentVersion: "0.3.5")
         try render(
             MenuBarPreviewStrip(usage: monitor.latestUsage),
             size: CGSize(width: 840, height: 164),
@@ -17,21 +18,24 @@ enum DocumentationAssetRenderer {
         )
         try render(
             MenuBarView()
-                .environmentObject(monitor),
+                .environmentObject(monitor)
+                .environmentObject(updateChecker),
             size: CGSize(width: 384, height: 640),
             to: outputDirectory.appendingPathComponent("menu-panel.png")
         )
         try render(
             MenuBarView()
                 .environmentObject(monitor)
+                .environmentObject(updateChecker)
                 .frame(width: 384, height: 330, alignment: .top)
                 .clipped(),
             size: CGSize(width: 384, height: 330),
             to: outputDirectory.appendingPathComponent("menu-panel-usage.png")
         )
         try render(
-            PreferencesView()
-                .environmentObject(monitor),
+            PreferencesView(loginItemStatusProvider: { false })
+                .environmentObject(monitor)
+                .environmentObject(updateChecker),
             size: CGSize(width: 740, height: 520),
             to: outputDirectory.appendingPathComponent("preferences.png")
         )
