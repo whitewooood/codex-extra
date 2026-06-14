@@ -68,6 +68,11 @@ stop_running_processes() {
   pkill -x "$APP_EXECUTABLE" >/dev/null 2>&1 || true
 }
 
+stop_installed_app() {
+  launchctl bootout "$GUI_DOMAIN" "$LAUNCH_AGENT" >/dev/null 2>&1 || true
+  stop_running_processes
+}
+
 install_app() {
   mkdir -p "$INSTALL_DIR"
   rm -rf "$INSTALL_BUNDLE"
@@ -125,6 +130,7 @@ installed_process_running() {
 
 build_install_and_start() {
   build_app
+  stop_installed_app
   install_app
   start_installed_app
 }

@@ -1,4 +1,5 @@
 import AppKit
+import CodexSoundGuardCore
 import SwiftUI
 
 @main
@@ -16,9 +17,42 @@ struct CodexSoundGuardApp: App {
             MenuBarView()
                 .environmentObject(monitor)
         } label: {
-            Label("Codex 声音提醒", systemImage: monitor.menuIconName)
+            MenuBarIconLabel(isRunning: monitor.isRunning, outcome: monitor.lastOutcome)
         }
         .menuBarExtraStyle(.window)
+    }
+}
+
+private struct MenuBarIconLabel: View {
+    let isRunning: Bool
+    let outcome: TurnOutcome?
+
+    var body: some View {
+        Image(systemName: "terminal")
+            .font(.system(size: 13, weight: .semibold))
+            .symbolRenderingMode(.hierarchical)
+            .overlay(alignment: .bottomTrailing) {
+                Circle()
+                    .fill(statusTint)
+                    .frame(width: 5, height: 5)
+                    .offset(x: 2, y: 1)
+            }
+            .accessibilityLabel("Codex 声音提醒")
+    }
+
+    private var statusTint: Color {
+        guard isRunning else {
+            return .secondary
+        }
+
+        switch outcome {
+        case .completed:
+            return .green
+        case .failed:
+            return .red
+        case nil:
+            return .accentColor
+        }
     }
 }
 

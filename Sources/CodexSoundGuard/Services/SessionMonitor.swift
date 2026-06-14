@@ -37,18 +37,7 @@ final class SessionMonitor: ObservableObject {
     }
 
     var menuIconName: String {
-        guard isRunning else {
-            return "bell.slash"
-        }
-
-        switch lastOutcome {
-        case .failed:
-            return "bell.badge"
-        case .completed:
-            return "bell.and.waves.left.and.right"
-        case nil:
-            return "bell"
-        }
+        "terminal"
     }
 
     func applySettings() {
