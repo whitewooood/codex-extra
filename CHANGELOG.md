@@ -6,6 +6,17 @@
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-06-15
+
+### 新增
+
+- 新增 Apple 风格应用图标源图与 macOS `.icns` 图标，使用双用量条、状态点和声音波纹表达工具用途。
+
+### 变更
+
+- 打包脚本会把 `AppIcon.icns` 写入 app bundle，并在 `Info.plist` 设置 `CFBundleIconFile`。
+- Release smoke test 增加 app bundle、ZIP 和 DMG 内图标资源校验。
+
 ## [0.3.6] - 2026-06-15
 
 ### 新增

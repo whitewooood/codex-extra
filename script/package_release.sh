@@ -14,8 +14,10 @@ RELEASE_DIR="$DIST_DIR/release"
 APP_BUNDLE="$RELEASE_DIR/$APP_DISPLAY_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
+APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_EXECUTABLE"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
+APP_ICON="$ROOT_DIR/Resources/AppIcon.icns"
 ARTIFACT_BASENAME="CodexMonitor-$APP_VERSION-macOS"
 ZIP_NAME="$ARTIFACT_BASENAME.zip"
 DMG_NAME="$ARTIFACT_BASENAME.dmg"
@@ -61,6 +63,8 @@ write_info_plist() {
   <string>$APP_DISPLAY_NAME</string>
   <key>CFBundleDisplayName</key>
   <string>$APP_DISPLAY_NAME</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleShortVersionString</key>
   <string>$APP_VERSION</string>
   <key>CFBundleVersion</key>
@@ -192,10 +196,12 @@ detach_dmg() {
 
 rm -rf "$RELEASE_DIR"
 mkdir -p "$APP_MACOS"
+mkdir -p "$APP_RESOURCES"
 
 swift build -c release
 build_binary="$(swift build -c release --show-bin-path)/$APP_EXECUTABLE"
 cp "$build_binary" "$APP_BINARY"
+cp "$APP_ICON" "$APP_RESOURCES/AppIcon.icns"
 chmod +x "$APP_BINARY"
 write_info_plist
 

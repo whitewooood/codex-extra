@@ -32,6 +32,7 @@ require_file() {
 
 require_file "$APP_PATH/Contents/Info.plist"
 require_file "$APP_PATH/Contents/MacOS/CodexSoundGuard"
+require_file "$APP_PATH/Contents/Resources/AppIcon.icns"
 require_file "$ZIP_PATH"
 require_file "$DMG_PATH"
 require_file "$ZIP_CHECKSUM_PATH"
@@ -45,11 +46,13 @@ fi
 bundle_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Contents/Info.plist")"
 bundle_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP_PATH/Contents/Info.plist")"
 bundle_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")"
+bundle_icon="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$APP_PATH/Contents/Info.plist")"
 lsui_element="$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$APP_PATH/Contents/Info.plist")"
 
 [[ "$bundle_id" == "com.whitewood.codex-monitor" ]] || { echo "unexpected bundle id: $bundle_id" >&2; exit 1; }
 [[ "$bundle_name" == "Codex Monitor" ]] || { echo "unexpected bundle name: $bundle_name" >&2; exit 1; }
 [[ "$bundle_version" == "$APP_VERSION" ]] || { echo "unexpected bundle version: $bundle_version" >&2; exit 1; }
+[[ "$bundle_icon" == "AppIcon" ]] || { echo "unexpected bundle icon: $bundle_icon" >&2; exit 1; }
 [[ "$lsui_element" == "true" ]] || { echo "LSUIElement must be true" >&2; exit 1; }
 
 /usr/bin/codesign --verify --deep --strict "$APP_PATH"
@@ -61,11 +64,13 @@ lsui_element="$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$APP_PATH/Conte
 
 /usr/bin/zipinfo -1 "$ZIP_PATH" | /usr/bin/grep -qx "Codex Monitor.app/Contents/Info.plist"
 /usr/bin/zipinfo -1 "$ZIP_PATH" | /usr/bin/grep -qx "Codex Monitor.app/Contents/MacOS/CodexSoundGuard"
+/usr/bin/zipinfo -1 "$ZIP_PATH" | /usr/bin/grep -qx "Codex Monitor.app/Contents/Resources/AppIcon.icns"
 
 mount_dir="$(mktemp -d /tmp/codex-monitor-smoke.XXXXXX)"
 /usr/bin/hdiutil attach -readonly -noverify -noautoopen -nobrowse -mountpoint "$mount_dir" "$DMG_PATH" >/dev/null
 require_file "$mount_dir/$APP_NAME/Contents/Info.plist"
 require_file "$mount_dir/$APP_NAME/Contents/MacOS/CodexSoundGuard"
+require_file "$mount_dir/$APP_NAME/Contents/Resources/AppIcon.icns"
 if [[ ! -L "$mount_dir/Applications" ]]; then
   echo "DMG is missing Applications symlink" >&2
   exit 1

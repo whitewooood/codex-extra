@@ -18,8 +18,10 @@ DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_DISPLAY_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
+APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_EXECUTABLE"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
+APP_ICON="$ROOT_DIR/Resources/AppIcon.icns"
 INSTALL_DIR="$HOME/Applications"
 INSTALL_BUNDLE="$INSTALL_DIR/$APP_DISPLAY_NAME.app"
 LEGACY_INSTALL_BUNDLE="$INSTALL_DIR/$LEGACY_APP_DISPLAY_NAME.app"
@@ -44,6 +46,8 @@ write_info_plist() {
   <string>$APP_DISPLAY_NAME</string>
   <key>CFBundleDisplayName</key>
   <string>$APP_DISPLAY_NAME</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleShortVersionString</key>
   <string>$APP_VERSION</string>
   <key>CFBundleVersion</key>
@@ -68,7 +72,9 @@ build_app() {
 
   rm -rf "$APP_BUNDLE"
   mkdir -p "$APP_MACOS"
+  mkdir -p "$APP_RESOURCES"
   cp "$build_binary" "$APP_BINARY"
+  cp "$APP_ICON" "$APP_RESOURCES/AppIcon.icns"
   chmod +x "$APP_BINARY"
   write_info_plist
   /usr/bin/codesign --force --deep --sign - "$APP_BUNDLE" >/dev/null
