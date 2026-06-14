@@ -104,7 +104,7 @@ struct MenuBarView: View {
                 )
 
                 if let usage = monitor.latestUsage {
-                    TokenSummaryRow(usage: usage, formatTokenCount: formatTokenCount, formatContextWindow: formatContextWindow)
+                    TokenSummaryRow(usage: usage)
 
                     VStack(spacing: 7) {
                         RateLimitRow(title: "5 小时窗口", limit: usage.primaryRateLimit, tint: .accentColor)
@@ -203,7 +203,7 @@ struct MenuBarView: View {
         guard let usage = monitor.latestUsage else {
             return "--"
         }
-        return "最近 \(formatTokenCount(usage.last.totalTokens))"
+        return "最近 \(UsageFormatter.tokenCount(usage.last.totalTokens))"
     }
 
     private var lastOutcomeLabel: String {
@@ -249,22 +249,6 @@ struct MenuBarView: View {
         URL(fileURLWithPath: path).lastPathComponent
     }
 
-    private func formatTokenCount(_ value: Int) -> String {
-        if value >= 1_000_000 {
-            return String(format: "%.1fM", Double(value) / 1_000_000)
-        }
-        if value >= 1_000 {
-            return String(format: "%.1fK", Double(value) / 1_000)
-        }
-        return "\(value)"
-    }
-
-    private func formatContextWindow(_ value: Int?) -> String {
-        guard let value else {
-            return "--"
-        }
-        return formatTokenCount(value)
-    }
 }
 
 private struct Surface<Content: View>: View {
@@ -325,18 +309,16 @@ private struct EmptyStateLine: View {
 
 private struct TokenSummaryRow: View {
     let usage: TokenUsageSnapshot
-    let formatTokenCount: (Int) -> String
-    let formatContextWindow: (Int?) -> String
 
     var body: some View {
         HStack(spacing: 0) {
-            TokenMetric(title: "累计", value: formatTokenCount(usage.total.totalTokens))
+            TokenMetric(title: "累计", value: UsageFormatter.tokenCount(usage.total.totalTokens))
             Divider()
                 .padding(.horizontal, 10)
-            TokenMetric(title: "最近", value: formatTokenCount(usage.last.totalTokens))
+            TokenMetric(title: "最近", value: UsageFormatter.tokenCount(usage.last.totalTokens))
             Divider()
                 .padding(.horizontal, 10)
-            TokenMetric(title: "上下文", value: formatContextWindow(usage.modelContextWindow))
+            TokenMetric(title: "上下文", value: UsageFormatter.contextWindow(usage.modelContextWindow))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 9)

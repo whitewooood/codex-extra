@@ -17,7 +17,11 @@ struct CodexSoundGuardApp: App {
             MenuBarView()
                 .environmentObject(monitor)
         } label: {
-            MenuBarIconLabel(isRunning: monitor.isRunning, outcome: monitor.lastOutcome)
+            MenuBarIconLabel(
+                isRunning: monitor.isRunning,
+                outcome: monitor.lastOutcome,
+                latestUsage: monitor.latestUsage
+            )
         }
         .menuBarExtraStyle(.window)
     }
@@ -26,9 +30,21 @@ struct CodexSoundGuardApp: App {
 private struct MenuBarIconLabel: View {
     let isRunning: Bool
     let outcome: TurnOutcome?
+    let latestUsage: TokenUsageSnapshot?
 
     var body: some View {
-        CodexMark(statusTint: statusTint, size: 18)
+        HStack(spacing: 4) {
+            CodexMark(statusTint: statusTint, size: 17)
+
+            if let usageText {
+                Text(usageText)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+        }
+        .fixedSize()
+        .accessibilityLabel(accessibilityLabel)
     }
 
     private var statusTint: Color {
@@ -44,6 +60,17 @@ private struct MenuBarIconLabel: View {
         case nil:
             return .accentColor
         }
+    }
+
+    private var usageText: String? {
+        UsageFormatter.menuBarSummary(latestUsage)
+    }
+
+    private var accessibilityLabel: String {
+        if let usageText {
+            return "Codex 声音提醒，当前用量 \(usageText)"
+        }
+        return "Codex 声音提醒"
     }
 }
 
