@@ -14,7 +14,7 @@ final class SessionMonitor: ObservableObject {
     @Published private(set) var latestUsage: TokenUsageSnapshot?
 
     private let soundPlayer = SoundPlayer()
-    private let logger = Logger(subsystem: "com.whitewood.codex-sound-guard", category: "monitor")
+    private let logger = Logger(subsystem: "com.whitewood.codex-usage-meter", category: "monitor")
     private var timer: Timer?
     private var offsets: [String: UInt64] = [:]
     private var partialLines: [String: String] = [:]

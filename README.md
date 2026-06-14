@@ -7,6 +7,10 @@
 
 菜单栏图标会显示两条单色微型剩余额度条：上方为 5 小时窗口，下方为 7 天窗口。下拉面板以 Codex 用量为主，声音提醒作为辅助设置；提醒音不依赖 macOS 通知系统。
 
+![Menu bar meter preview](docs/assets/menu-bar-meter.svg)
+
+![Menu panel preview](docs/assets/menu-panel.svg)
+
 ## 功能
 
 - 监听 `~/.codex/sessions/**/*.jsonl`。
@@ -20,6 +24,12 @@
 
 命令失败判断默认关闭，因为 Codex 经常会运行探索性命令，单个命令非 0 不一定代表整个任务失败。
 
+## 下载
+
+从 [GitHub Releases](https://github.com/whitewooood/codex-extra/releases) 下载 `CodexUsageMeter-<version>-macOS.zip`。
+
+当前 Release 产物是 ad-hoc signed，尚未 Apple notarized。macOS 可能显示无法验证开发者的提示；详情见 [docs/SIGNING.md](docs/SIGNING.md)。
+
 ## 要求
 
 - macOS 13 或更新版本。
@@ -32,13 +42,29 @@
 ./script/build_and_run.sh
 ```
 
-构建后会更新并启动 `~/Applications/Codex 声音提醒.app`。如果已经安装登录项，Run 会通过 launchd 重启已安装版本，避免留下 `dist` 里的开发进程。也可以直接使用 Codex Desktop 的 Run 按钮启动。
+构建后会更新并启动 `~/Applications/Codex Usage Meter.app`。如果已经安装登录项，Run 会通过 launchd 重启已安装版本，避免留下 `dist` 里的开发进程。也可以直接使用 Codex Desktop 的 Run 按钮启动。
+
+更多安装方式见 [docs/INSTALL.md](docs/INSTALL.md)。
 
 ## 测试
 
 ```bash
 swift test
 ```
+
+严格并发检查：
+
+```bash
+swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+```
+
+## 打包
+
+```bash
+./script/package_release.sh
+```
+
+产物会写入 `dist/release/`。发布流程见 [docs/RELEASING.md](docs/RELEASING.md)。
 
 ## 安装为常驻工具
 
@@ -60,7 +86,7 @@ swift test
 ./script/build_and_run.sh --uninstall-login-item
 ```
 
-登录项使用 `~/Library/LaunchAgents/com.whitewood.codex-sound-guard.plist`，直接运行 `~/Applications/Codex 声音提醒.app/Contents/MacOS/CodexSoundGuard`，不会修改系统级目录。
+登录项使用 `~/Library/LaunchAgents/com.whitewood.codex-usage-meter.plist`，直接运行 `~/Applications/Codex Usage Meter.app/Contents/MacOS/CodexSoundGuard`，不会修改系统级目录。
 
 ## 默认声音
 
@@ -83,6 +109,12 @@ swift test
 ## 隐私
 
 这个工具只读取本机的 Codex JSONL 会话日志，不上传数据，也不访问云端账单 API。声音设置和监听开关保存在当前用户的 `UserDefaults` 中。
+
+详情见 [docs/PRIVACY.md](docs/PRIVACY.md)。
+
+## 配置
+
+声音、日志目录和偏好设置说明见 [docs/CONFIGURATION.md](docs/CONFIGURATION.md)。
 
 ## 失败判定
 

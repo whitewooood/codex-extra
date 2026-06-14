@@ -19,3 +19,6 @@ jobs:
 
       - name: Run tests
         run: swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+
+      - name: Package app
+        run: ./script/package_release.sh

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="520" viewBox="0 0 640 520" role="img" aria-label="Codex Usage Meter menu panel preview">
+  <rect width="640" height="520" rx="24" fill="#f5f5f7"/>
+  <rect x="152" y="44" width="336" height="430" rx="18" fill="#fbfbfd" stroke="#d9d9df"/>
+  <text x="176" y="84" font-family="-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="20" font-weight="600" fill="#1d1d20">Codex 用量</text>
+  <text x="176" y="108" font-family="-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="12" fill="#777780">本地日志用量与任务提醒</text>
+  <rect x="176" y="132" width="288" height="136" rx="10" fill="#ffffff" stroke="#dedee5"/>
+  <text x="196" y="164" font-family="-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="14" font-weight="600" fill="#202026">剩余额度</text>
+  <text x="388" y="164" font-family="SFMono-Regular,Menlo,monospace" font-size="12" fill="#777780">最近 12.4K</text>
+  <text x="196" y="198" font-family="-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#696970">5 小时</text>
+  <text x="386" y="198" font-family="SFMono-Regular,Menlo,monospace" font-size="12" fill="#202026">72% 剩余</text>
+  <rect x="196" y="210" width="228" height="6" rx="3" fill="#202026" fill-opacity=".12"/>
+  <rect x="196" y="210" width="164" height="6" rx="3" fill="#202026" fill-opacity=".72"/>
+  <text x="196" y="240" font-family="-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#696970">7 天</text>
+  <text x="390" y="240" font-family="SFMono-Regular,Menlo,monospace" font-size="12" fill="#202026">43% 剩余</text>
+  <rect x="196" y="252" width="228" height="6" rx="3" fill="#202026" fill-opacity=".12"/>
+  <rect x="196" y="252" width="98" height="6" rx="3" fill="#202026" fill-opacity=".72"/>
+  <rect x="176" y="286" width="288" height="72" rx="10" fill="#ffffff" stroke="#dedee5"/>
+  <text x="196" y="318" font-family="-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="13" fill="#696970">累计</text>
+  <text x="196" y="340" font-family="SFMono-Regular,Menlo,monospace" font-size="14" font-weight="600" fill="#202026">812.4K</text>
+  <text x="292" y="318" font-family="-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="13" fill="#696970">最近</text>
+  <text x="292" y="340" font-family="SFMono-Regular,Menlo,monospace" font-size="14" font-weight="600" fill="#202026">12.4K</text>
+  <text x="388" y="318" font-family="-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="13" fill="#696970">上下文</text>
+  <text x="388" y="340" font-family="SFMono-Regular,Menlo,monospace" font-size="14" font-weight="600" fill="#202026">200K</text>
+  <rect x="176" y="376" width="288" height="52" rx="10" fill="#ffffff" stroke="#dedee5"/>
+  <circle cx="196" cy="402" r="4" fill="#202026" fill-opacity=".52"/>
+  <text x="210" y="407" font-family="-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="13" font-weight="600" fill="#202026">监听中 · 等待事件</text>
+  <text x="176" y="456" font-family="-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="12" fill="#777780">声音提醒作为辅助设置保留在下方。</text>
+</svg>

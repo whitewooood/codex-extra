@@ -30,7 +30,7 @@ struct CodexMark: View {
             }
         }
         .frame(width: size + (showsStatus ? size * 0.08 : 0), height: size)
-        .accessibilityLabel("Codex 声音提醒")
+        .accessibilityLabel("Codex Usage Meter")
     }
 }
 
@@ -50,9 +50,9 @@ struct CodexUsageMeter: View {
 
     private var accessibilityLabel: String {
         if let usageText = UsageFormatter.menuBarSummary(usage) {
-            return "Codex 声音提醒，当前用量 \(usageText)"
+            return "Codex Usage Meter，当前用量 \(usageText)"
         }
-        return "Codex 声音提醒，等待用量数据"
+        return "Codex Usage Meter，等待用量数据"
     }
 
     private var helpText: String {

@@ -2,12 +2,16 @@
 set -euo pipefail
 
 MODE="${1:-run}"
-APP_DISPLAY_NAME="Codex 声音提醒"
+APP_DISPLAY_NAME="Codex Usage Meter"
 APP_EXECUTABLE="CodexSoundGuard"
-BUNDLE_ID="com.whitewood.codex-sound-guard"
+BUNDLE_ID="com.whitewood.codex-usage-meter"
+LEGACY_APP_DISPLAY_NAME="Codex 声音提醒"
+LEGACY_BUNDLE_ID="com.whitewood.codex-sound-guard"
 MIN_SYSTEM_VERSION="13.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
+BUILD_NUMBER="${BUILD_NUMBER:-$(git -C "$ROOT_DIR" rev-list --count HEAD 2>/dev/null || echo 1)}"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_DISPLAY_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
@@ -16,8 +20,10 @@ APP_BINARY="$APP_MACOS/$APP_EXECUTABLE"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 INSTALL_DIR="$HOME/Applications"
 INSTALL_BUNDLE="$INSTALL_DIR/$APP_DISPLAY_NAME.app"
+LEGACY_INSTALL_BUNDLE="$INSTALL_DIR/$LEGACY_APP_DISPLAY_NAME.app"
 INSTALL_BINARY="$INSTALL_BUNDLE/Contents/MacOS/$APP_EXECUTABLE"
 LAUNCH_AGENT="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
+LEGACY_LAUNCH_AGENT="$HOME/Library/LaunchAgents/$LEGACY_BUNDLE_ID.plist"
 GUI_DOMAIN="gui/$(id -u)"
 
 write_info_plist() {
@@ -35,9 +41,9 @@ write_info_plist() {
   <key>CFBundleDisplayName</key>
   <string>$APP_DISPLAY_NAME</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.3.0</string>
+  <string>$APP_VERSION</string>
   <key>CFBundleVersion</key>
-  <string>3</string>
+  <string>$BUILD_NUMBER</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>LSMinimumSystemVersion</key>
@@ -70,12 +76,14 @@ stop_running_processes() {
 
 stop_installed_app() {
   launchctl bootout "$GUI_DOMAIN" "$LAUNCH_AGENT" >/dev/null 2>&1 || true
+  launchctl bootout "$GUI_DOMAIN" "$LEGACY_LAUNCH_AGENT" >/dev/null 2>&1 || true
   stop_running_processes
 }
 
 install_app() {
   mkdir -p "$INSTALL_DIR"
   rm -rf "$INSTALL_BUNDLE"
+  rm -rf "$LEGACY_INSTALL_BUNDLE"
   cp -R "$APP_BUNDLE" "$INSTALL_BUNDLE"
   xattr -cr "$INSTALL_BUNDLE" >/dev/null 2>&1 || true
   echo "installed: $INSTALL_BUNDLE"
@@ -185,7 +193,9 @@ case "$MODE" in
     ;;
   --uninstall-login-item|uninstall-login-item)
     launchctl bootout "$GUI_DOMAIN" "$LAUNCH_AGENT" >/dev/null 2>&1 || true
+    launchctl bootout "$GUI_DOMAIN" "$LEGACY_LAUNCH_AGENT" >/dev/null 2>&1 || true
     rm -f "$LAUNCH_AGENT"
+    rm -f "$LEGACY_LAUNCH_AGENT"
     echo "login item removed: $LAUNCH_AGENT"
     ;;
   --debug|debug)
