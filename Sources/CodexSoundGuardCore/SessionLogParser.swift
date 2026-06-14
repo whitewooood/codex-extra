@@ -226,14 +226,8 @@ public enum SessionLogParser {
         guard let value else {
             return nil
         }
-        return ISO8601DateFormatter.codex.date(from: value)
-    }
-}
-
-private extension ISO8601DateFormatter {
-    static let codex: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
+        return formatter.date(from: value)
+    }
 }

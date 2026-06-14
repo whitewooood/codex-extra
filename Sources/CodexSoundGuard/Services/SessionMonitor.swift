@@ -53,7 +53,7 @@ final class SessionMonitor: ObservableObject {
         lastStatus = "正在监听 Codex 会话"
         scan()
         timer = Timer.scheduledTimer(withTimeInterval: scanInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 self?.scan()
             }
         }
