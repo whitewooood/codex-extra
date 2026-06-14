@@ -15,6 +15,9 @@ struct PreferencesView: View {
     @AppStorage(AppDefaults.Key.menuBarDisplayMode) private var menuBarDisplayMode = MenuBarDisplayMode.graphic.rawValue
     @AppStorage(AppDefaults.Key.primaryLimitWarningThreshold) private var primaryThreshold = 20.0
     @AppStorage(AppDefaults.Key.secondaryLimitWarningThreshold) private var secondaryThreshold = 20.0
+    @AppStorage(AppDefaults.Key.quietHoursEnabled) private var quietHoursEnabled = false
+    @AppStorage(AppDefaults.Key.quietHoursStartMinute) private var quietHoursStartMinute = 22 * 60
+    @AppStorage(AppDefaults.Key.quietHoursEndMinute) private var quietHoursEndMinute = 8 * 60
 
     @State private var selectedPane = PreferencesPane.general
     @State private var loginItemInstalled = LoginItemManager.isInstalled
@@ -98,24 +101,11 @@ struct PreferencesView: View {
             }
 
             PreferenceGroup(title: "启动项", iconName: "power") {
-                HStack(alignment: .center, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("登录时启动")
-                            .font(.callout.weight(.medium))
-                        Text(loginItemInstalled ? "已安装 LaunchAgent" : "未安装 LaunchAgent")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer(minLength: 16)
-
-                    Button {
-                        toggleLoginItem()
-                    } label: {
-                        Label(loginItemInstalled ? "移除" : "安装", systemImage: loginItemInstalled ? "minus.circle" : "plus.circle")
-                    }
-                    .buttonStyle(.bordered)
-                }
+                PreferenceToggleRow(
+                    title: "登录时启动",
+                    value: loginItemInstalled ? "已安装 LaunchAgent" : "未安装 LaunchAgent",
+                    isOn: loginItemBinding
+                )
 
                 if let loginItemMessage {
                     Text(loginItemMessage)
@@ -162,6 +152,25 @@ struct PreferencesView: View {
                     chooseAction: { chooseSound(defaultKey: AppDefaults.Key.failureSoundPath) }
                 )
             }
+
+            PreferenceGroup(title: "安静时段", iconName: "moon.zzz") {
+                PreferenceToggleRow(
+                    title: "暂停提示音",
+                    value: quietHoursEnabled ? quietHoursSummary : "关闭",
+                    isOn: $quietHoursEnabled
+                )
+
+                HStack(spacing: 12) {
+                    QuietHourPicker(title: "开始", selection: $quietHoursStartMinute)
+                    QuietHourPicker(title: "结束", selection: $quietHoursEndMinute)
+                }
+                .disabled(!quietHoursEnabled)
+                .opacity(quietHoursEnabled ? 1 : 0.46)
+
+                Text("安静时段只会暂停自动完成/失败提示音；试听按钮仍会播放。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -204,6 +213,19 @@ struct PreferencesView: View {
         MenuBarDisplayMode(rawValue: menuBarDisplayMode) ?? .graphic
     }
 
+    private var loginItemBinding: Binding<Bool> {
+        Binding(
+            get: { loginItemInstalled },
+            set: { isEnabled in
+                setLoginItem(isEnabled)
+            }
+        )
+    }
+
+    private var quietHoursSummary: String {
+        "\(Self.timeLabel(for: quietHoursStartMinute)) - \(Self.timeLabel(for: quietHoursEndMinute))"
+    }
+
     private func chooseSound(defaultKey: String) {
         let panel = NSOpenPanel()
         panel.title = "选择提醒声音"
@@ -217,20 +239,24 @@ struct PreferencesView: View {
         }
     }
 
-    private func toggleLoginItem() {
+    private func setLoginItem(_ isEnabled: Bool) {
         do {
-            if loginItemInstalled {
-                try LoginItemManager.uninstall()
-                loginItemMessage = "登录项已移除。"
-            } else {
+            if isEnabled {
                 try LoginItemManager.install()
                 loginItemMessage = "登录项已安装。"
+            } else {
+                try LoginItemManager.uninstall()
+                loginItemMessage = "登录项已移除。"
             }
             loginItemInstalled = LoginItemManager.isInstalled
         } catch {
             loginItemMessage = error.localizedDescription
             loginItemInstalled = LoginItemManager.isInstalled
         }
+    }
+
+    private static func timeLabel(for minuteOfDay: Int) -> String {
+        String(format: "%02d:%02d", minuteOfDay / 60, minuteOfDay % 60)
     }
 }
 
@@ -506,6 +532,33 @@ private struct SoundPreferenceRow: View {
             .controlSize(.small)
         }
         .padding(.vertical, 4)
+    }
+}
+
+private struct QuietHourPicker: View {
+    let title: String
+    @Binding var selection: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Picker(title, selection: $selection) {
+                ForEach(Self.timeOptions, id: \.self) { minute in
+                    Text(Self.timeLabel(for: minute)).tag(minute)
+                }
+            }
+            .labelsHidden()
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private static let timeOptions = Array(stride(from: 0, through: 23 * 60 + 30, by: 30))
+
+    private static func timeLabel(for minuteOfDay: Int) -> String {
+        String(format: "%02d:%02d", minuteOfDay / 60, minuteOfDay % 60)
     }
 }
 

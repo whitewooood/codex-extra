@@ -13,6 +13,9 @@ enum AppDefaults {
         static let menuBarDisplayMode = "menuBarDisplayMode"
         static let primaryLimitWarningThreshold = "primaryLimitWarningThreshold"
         static let secondaryLimitWarningThreshold = "secondaryLimitWarningThreshold"
+        static let quietHoursEnabled = "quietHoursEnabled"
+        static let quietHoursStartMinute = "quietHoursStartMinute"
+        static let quietHoursEndMinute = "quietHoursEndMinute"
     }
 
     static var sessionsRootPath: String {
@@ -53,7 +56,10 @@ enum AppDefaults {
             Key.volume: 0.8,
             Key.menuBarDisplayMode: MenuBarDisplayMode.graphic.rawValue,
             Key.primaryLimitWarningThreshold: 20.0,
-            Key.secondaryLimitWarningThreshold: 20.0
+            Key.secondaryLimitWarningThreshold: 20.0,
+            Key.quietHoursEnabled: false,
+            Key.quietHoursStartMinute: 22 * 60,
+            Key.quietHoursEndMinute: 8 * 60
         ])
     }
 }

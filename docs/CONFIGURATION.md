@@ -34,6 +34,10 @@ Codex Monitor 会将偏好设置保存在当前用户的 `UserDefaults` 中。
 
 你可以在 Preferences 的“声音”页选择自定义音频文件，并调整音量。
 
+## 安静时段
+
+Preferences 的“声音”页可以开启安静时段，并设置开始/结束时间。安静时段内会暂停自动完成/失败提示音；“试听”按钮仍会播放，方便确认声音文件和音量。
+
 ## 菜单栏显示
 
 Preferences 的“通用”页可以选择菜单栏显示模式：
@@ -46,6 +50,14 @@ Preferences 的“通用”页可以选择菜单栏显示模式：
 ## 失败判定
 
 “命令非 0 退出也算失败”默认关闭。Codex 经常会运行探索性命令，单个命令非 0 不一定代表整个任务失败。
+
+## 登录时启动
+
+Preferences 的“通用”页提供登录时启动开关。该功能使用当前用户的 LaunchAgent：
+
+```text
+~/Library/LaunchAgents/com.whitewood.codex-monitor.plist
+```
 
 ## 用量阈值
 

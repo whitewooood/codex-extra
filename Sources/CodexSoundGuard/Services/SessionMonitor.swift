@@ -355,32 +355,62 @@ final class SessionMonitor: ObservableObject {
                 currentTurnIDByPath.removeValue(forKey: path)
             }
             logger.info("Turn classified as \(classification.outcome.rawValue, privacy: .public): \(classification.reason, privacy: .public)")
-            play(outcome: classification.outcome)
+            let soundResult = play(outcome: classification.outcome)
             lastOutcome = classification.outcome
-            lastStatus = "\(classification.outcome.title) \(Self.timeFormatter.string(from: Date()))"
+            if soundResult == .suppressedByQuietHours {
+                lastStatus = "安静时段内已静音 \(Self.timeFormatter.string(from: Date()))"
+            } else {
+                lastStatus = "\(classification.outcome.title) \(Self.timeFormatter.string(from: Date()))"
+            }
         case .ignored:
             break
         }
     }
 
-    private func play(outcome: TurnOutcome, force: Bool = false) {
+    @discardableResult
+    private func play(outcome: TurnOutcome, force: Bool = false) -> SoundPlaybackResult {
         let defaults = UserDefaults.standard
         let volume = defaults.double(forKey: AppDefaults.Key.volume)
+        guard force || !Self.isQuietHoursActive(defaults: defaults, date: Date()) else {
+            return .suppressedByQuietHours
+        }
 
         switch outcome {
         case .completed:
             guard force || defaults.bool(forKey: AppDefaults.Key.completionSoundEnabled) else {
-                return
+                return .skipped
             }
             let path = defaults.string(forKey: AppDefaults.Key.completionSoundPath) ?? AppDefaults.defaultCompletionSoundPath
             soundPlayer.play(path: path, volume: volume)
         case .failed:
             guard force || defaults.bool(forKey: AppDefaults.Key.failureSoundEnabled) else {
-                return
+                return .skipped
             }
             let path = defaults.string(forKey: AppDefaults.Key.failureSoundPath) ?? AppDefaults.defaultFailureSoundPath
             soundPlayer.play(path: path, volume: volume)
         }
+        return .played
+    }
+
+    private static func isQuietHoursActive(defaults: UserDefaults, date: Date) -> Bool {
+        guard defaults.bool(forKey: AppDefaults.Key.quietHoursEnabled) else {
+            return false
+        }
+
+        let startMinute = defaults.integer(forKey: AppDefaults.Key.quietHoursStartMinute)
+        let endMinute = defaults.integer(forKey: AppDefaults.Key.quietHoursEndMinute)
+        guard startMinute != endMinute else {
+            return true
+        }
+
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let currentMinute = (components.hour ?? 0) * 60 + (components.minute ?? 0)
+
+        if startMinute < endMinute {
+            return currentMinute >= startMinute && currentMinute < endMinute
+        }
+
+        return currentMinute >= startMinute || currentMinute < endMinute
     }
 
     private func shouldBootstrapContext(modifiedAt: Date) -> Bool {
@@ -644,6 +674,12 @@ private struct UsageSample {
     let timestamp: Date
     let path: String
     let tokens: Int
+}
+
+private enum SoundPlaybackResult {
+    case played
+    case skipped
+    case suppressedByQuietHours
 }
 
 private extension SessionEventKind {
