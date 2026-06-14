@@ -133,7 +133,6 @@ struct MenuBarView: View {
 
                 if monitor.usageTrend.contains(where: { $0.tokens > 0 }) {
                     UsageTrendChart(points: monitor.usageTrend)
-                    InsightLine(iconName: "info.circle", text: "趋势按小时汇总最近一次 token 消耗，用来判断近 24 小时 Codex 活跃峰值。")
                 } else {
                     EmptyStateLine(
                         iconName: "chart.line.uptrend.xyaxis",
@@ -166,9 +165,7 @@ struct MenuBarView: View {
                             SessionRankRow(
                                 rank: index + 1,
                                 summary: summary,
-                                maxTokens: monitor.sessionUsageRankings.map(\.totalTokens).max() ?? summary.totalTokens,
-                                openAction: { openSession(summary) },
-                                copyAction: { copySessionPath(summary) }
+                                maxTokens: monitor.sessionUsageRankings.map(\.totalTokens).max() ?? summary.totalTokens
                             )
                         }
                     }
@@ -287,15 +284,6 @@ struct MenuBarView: View {
 
     private func openSettings() {
         PreferencesWindowController.shared.show(monitor: monitor, updateChecker: updateChecker)
-    }
-
-    private func openSession(_ summary: SessionUsageSummary) {
-        NSWorkspace.shared.open(URL(fileURLWithPath: summary.path))
-    }
-
-    private func copySessionPath(_ summary: SessionUsageSummary) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(summary.path, forType: .string)
     }
 
 }

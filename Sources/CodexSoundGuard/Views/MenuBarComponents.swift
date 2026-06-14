@@ -521,8 +521,6 @@ struct SessionRankRow: View {
     let rank: Int
     let summary: SessionUsageSummary
     let maxTokens: Int
-    let openAction: () -> Void
-    let copyAction: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -538,11 +536,10 @@ struct SessionRankRow: View {
                         .font(.caption.weight(.semibold))
                         .lineLimit(1)
                         .truncationMode(.tail)
-                    Text("最近 \(UsageFormatter.tokenCount(summary.lastTokens)) · \(Self.timeFormatter.string(from: summary.updatedAt)) · \(summary.fileName)")
+                    Text("最近 \(UsageFormatter.tokenCount(summary.lastTokens)) · \(Self.timeFormatter.string(from: summary.updatedAt))")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        .truncationMode(.middle)
                 }
 
                 Spacer(minLength: 8)
@@ -551,22 +548,6 @@ struct SessionRankRow: View {
                     .font(.caption.monospacedDigit().weight(.semibold))
                     .lineLimit(1)
                     .help("会话累计 token")
-
-                HStack(spacing: 4) {
-                    Button(action: openAction) {
-                        Image(systemName: "arrow.up.right.square")
-                            .frame(width: 22, height: 22)
-                    }
-                    .buttonStyle(QuietIconButtonStyle())
-                    .help("打开 session 文件")
-
-                    Button(action: copyAction) {
-                        Image(systemName: "doc.on.doc")
-                            .frame(width: 22, height: 22)
-                    }
-                    .buttonStyle(QuietIconButtonStyle())
-                    .help("复制 session 路径")
-                }
             }
 
             GeometryReader { proxy in

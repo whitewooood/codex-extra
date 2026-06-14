@@ -141,7 +141,7 @@ public enum UsageAnalytics {
             return existing
         }
 
-        return fileName
+        return "未命名任务"
     }
 
     private static func sessionFileName(_ path: String) -> String {

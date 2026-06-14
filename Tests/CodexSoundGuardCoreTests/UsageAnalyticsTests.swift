@@ -17,7 +17,7 @@ final class UsageAnalyticsTests: XCTestCase {
         XCTAssertEqual(points.map(\.tokens), [100, 0, 300, 0, 0, 900])
     }
 
-    func testSessionSummaryUsesReadableTitleAndFileFallback() {
+    func testSessionSummaryUsesReadableTitle() {
         let usage = usage(total: 1200, last: 300)
 
         let summary = UsageAnalytics.makeSessionSummary(
@@ -31,6 +31,18 @@ final class UsageAnalyticsTests: XCTestCase {
         XCTAssertEqual(summary.fileName, "session-1")
         XCTAssertEqual(summary.totalTokens, 1200)
         XCTAssertEqual(summary.lastTokens, 300)
+    }
+
+    func testSessionSummaryDoesNotUseFileNameAsTitleFallback() {
+        let summary = UsageAnalytics.makeSessionSummary(
+            usage: usage(total: 800, last: 120),
+            timestamp: date(hour: 10, minute: 0),
+            path: "/Users/demo/.codex/sessions/2026/06/15/3d0f34bc-2a1b-4f2b-a992-7d441753f8f2.jsonl",
+            title: nil
+        )
+
+        XCTAssertEqual(summary.title, "未命名任务")
+        XCTAssertEqual(summary.fileName, "3d0f34bc-2a1b-4f2b-a992-7d441753f8f2")
     }
 
     func testRanksSessionsByTotalThenRecencyAndLimits() {
