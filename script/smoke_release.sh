@@ -71,9 +71,15 @@ mount_dir="$(mktemp -d /tmp/codex-monitor-smoke.XXXXXX)"
 require_file "$mount_dir/$APP_NAME/Contents/Info.plist"
 require_file "$mount_dir/$APP_NAME/Contents/MacOS/CodexSoundGuard"
 require_file "$mount_dir/$APP_NAME/Contents/Resources/AppIcon.icns"
+require_file "$mount_dir/.background/background.png"
 if [[ ! -L "$mount_dir/Applications" ]]; then
   echo "DMG is missing Applications symlink" >&2
   exit 1
 fi
+
+background_width="$(/usr/bin/sips -g pixelWidth "$mount_dir/.background/background.png" 2>/dev/null | /usr/bin/awk '/pixelWidth/ { print $2 }')"
+background_height="$(/usr/bin/sips -g pixelHeight "$mount_dir/.background/background.png" 2>/dev/null | /usr/bin/awk '/pixelHeight/ { print $2 }')"
+[[ "$background_width" == "700" ]] || { echo "unexpected DMG background width: $background_width" >&2; exit 1; }
+[[ "$background_height" == "440" ]] || { echo "unexpected DMG background height: $background_height" >&2; exit 1; }
 
 echo "release smoke test passed"

@@ -89,49 +89,128 @@ import AppKit
 import Foundation
 
 let output = URL(fileURLWithPath: CommandLine.arguments[1])
-let size = NSSize(width: 640, height: 400)
-let image = NSImage(size: size)
-image.lockFocus()
+let width = 700
+let height = 440
+let size = NSSize(width: width, height: height)
+guard let bitmap = NSBitmapImageRep(
+    bitmapDataPlanes: nil,
+    pixelsWide: width,
+    pixelsHigh: height,
+    bitsPerSample: 8,
+    samplesPerPixel: 4,
+    hasAlpha: true,
+    isPlanar: false,
+    colorSpaceName: .deviceRGB,
+    bytesPerRow: 0,
+    bitsPerPixel: 0
+) else {
+    exit(1)
+}
+bitmap.size = size
 
-NSColor(calibratedWhite: 0.965, alpha: 1).setFill()
+NSGraphicsContext.saveGraphicsState()
+NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+
+NSColor(calibratedRed: 0.965, green: 0.972, blue: 0.982, alpha: 1).setFill()
 NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
 
+let panelRect = NSRect(x: 22, y: 22, width: 656, height: 396)
+let panelPath = NSBezierPath(roundedRect: panelRect, xRadius: 24, yRadius: 24)
+NSColor.white.withAlphaComponent(0.82).setFill()
+panelPath.fill()
+NSColor(calibratedWhite: 0.82, alpha: 0.55).setStroke()
+panelPath.lineWidth = 1
+panelPath.stroke()
+
+let accent = NSColor(calibratedRed: 0.05, green: 0.46, blue: 1, alpha: 1)
+
+func drawRoundedRect(_ rect: NSRect, radius: CGFloat, fill: NSColor, stroke: NSColor? = nil) {
+    let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
+    fill.setFill()
+    path.fill()
+    if let stroke {
+        stroke.setStroke()
+        path.lineWidth = 1
+        path.stroke()
+    }
+}
+
+drawRoundedRect(
+    NSRect(x: 46, y: 328, width: 38, height: 38),
+    radius: 10,
+    fill: NSColor(calibratedRed: 0.90, green: 0.94, blue: 1, alpha: 1),
+    stroke: NSColor(calibratedRed: 0.76, green: 0.84, blue: 1, alpha: 1)
+)
+
+let mark = NSBezierPath()
+mark.lineWidth = 4
+mark.lineCapStyle = .round
+mark.move(to: NSPoint(x: 57, y: 351))
+mark.line(to: NSPoint(x: 72, y: 351))
+mark.move(to: NSPoint(x: 57, y: 342))
+mark.line(to: NSPoint(x: 67, y: 342))
+mark.move(to: NSPoint(x: 76, y: 338))
+mark.line(to: NSPoint(x: 76, y: 338))
+accent.setStroke()
+mark.stroke()
+accent.setFill()
+NSBezierPath(ovalIn: NSRect(x: 73, y: 335, width: 6, height: 6)).fill()
+
 let titleAttributes: [NSAttributedString.Key: Any] = [
-    .font: NSFont.systemFont(ofSize: 24, weight: .semibold),
-    .foregroundColor: NSColor.labelColor
+    .font: NSFont.systemFont(ofSize: 25, weight: .semibold),
+    .foregroundColor: NSColor(calibratedWhite: 0.12, alpha: 1)
 ]
 let bodyAttributes: [NSAttributedString.Key: Any] = [
-    .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-    .foregroundColor: NSColor.secondaryLabelColor
+    .font: NSFont.systemFont(ofSize: 13, weight: .regular),
+    .foregroundColor: NSColor(calibratedWhite: 0.42, alpha: 1)
+]
+let labelAttributes: [NSAttributedString.Key: Any] = [
+    .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
+    .foregroundColor: NSColor(calibratedWhite: 0.62, alpha: 1)
 ]
 
-"Codex Monitor".draw(at: NSPoint(x: 40, y: 322), withAttributes: titleAttributes)
-"拖拽到 Applications 以安装".draw(at: NSPoint(x: 40, y: 298), withAttributes: bodyAttributes)
-"Drag to Applications to install".draw(at: NSPoint(x: 40, y: 276), withAttributes: bodyAttributes)
+"Codex Monitor".draw(at: NSPoint(x: 96, y: 344), withAttributes: titleAttributes)
+"拖到 Applications 完成安装".draw(at: NSPoint(x: 98, y: 322), withAttributes: bodyAttributes)
+"Drag the app to Applications".draw(at: NSPoint(x: 98, y: 302), withAttributes: bodyAttributes)
+
+drawRoundedRect(
+    NSRect(x: 92, y: 128, width: 190, height: 160),
+    radius: 22,
+    fill: NSColor(calibratedWhite: 0.985, alpha: 0.92),
+    stroke: NSColor(calibratedWhite: 0.86, alpha: 0.75)
+)
+drawRoundedRect(
+    NSRect(x: 418, y: 128, width: 190, height: 160),
+    radius: 22,
+    fill: NSColor(calibratedWhite: 0.985, alpha: 0.92),
+    stroke: NSColor(calibratedWhite: 0.86, alpha: 0.75)
+)
+
+"APP".draw(at: NSPoint(x: 174, y: 154), withAttributes: labelAttributes)
+"APPLICATIONS".draw(at: NSPoint(x: 471, y: 154), withAttributes: labelAttributes)
 
 let arrowPath = NSBezierPath()
-arrowPath.move(to: NSPoint(x: 246, y: 196))
-arrowPath.line(to: NSPoint(x: 394, y: 196))
-arrowPath.move(to: NSPoint(x: 374, y: 214))
-arrowPath.line(to: NSPoint(x: 396, y: 196))
-arrowPath.line(to: NSPoint(x: 374, y: 178))
-NSColor.secondaryLabelColor.withAlphaComponent(0.65).setStroke()
-arrowPath.lineWidth = 4
+arrowPath.move(to: NSPoint(x: 316, y: 214))
+arrowPath.line(to: NSPoint(x: 386, y: 214))
+arrowPath.move(to: NSPoint(x: 368, y: 232))
+arrowPath.line(to: NSPoint(x: 388, y: 214))
+arrowPath.line(to: NSPoint(x: 368, y: 196))
+accent.withAlphaComponent(0.72).setStroke()
+arrowPath.lineWidth = 3.5
 arrowPath.lineCapStyle = .round
 arrowPath.lineJoinStyle = .round
 arrowPath.stroke()
 
 let hintAttributes: [NSAttributedString.Key: Any] = [
-    .font: NSFont.systemFont(ofSize: 12, weight: .regular),
-    .foregroundColor: NSColor.tertiaryLabelColor
+    .font: NSFont.systemFont(ofSize: 11, weight: .regular),
+    .foregroundColor: NSColor(calibratedWhite: 0.58, alpha: 1)
 ]
-"本机解析 Codex 日志；更新检查只请求 GitHub".draw(at: NSPoint(x: 40, y: 44), withAttributes: hintAttributes)
+"本机解析 Codex 日志 · 不上传会话内容".draw(at: NSPoint(x: 46, y: 50), withAttributes: hintAttributes)
+"Local logs only · No telemetry".draw(at: NSPoint(x: 46, y: 32), withAttributes: hintAttributes)
 
-image.unlockFocus()
+NSGraphicsContext.restoreGraphicsState()
 
-guard let tiff = image.tiffRepresentation,
-      let bitmap = NSBitmapImageRep(data: tiff),
-      let png = bitmap.representation(using: .png, properties: [:]) else {
+guard let png = bitmap.representation(using: .png, properties: [:]) else {
     exit(1)
 }
 try png.write(to: output)
@@ -147,13 +226,13 @@ tell application "Finder"
     set current view of container window to icon view
     set toolbar visible of container window to false
     set statusbar visible of container window to false
-    set the bounds of container window to {100, 100, 740, 500}
+    set the bounds of container window to {100, 100, 800, 540}
     set opts to the icon view options of container window
     set arrangement of opts to not arranged
-    set icon size of opts to 96
+    set icon size of opts to 104
     set background picture of opts to file ".background:background.png"
-    set position of item "$APP_DISPLAY_NAME.app" of container window to {170, 205}
-    set position of item "Applications" of container window to {470, 205}
+    set position of item "$APP_DISPLAY_NAME.app" of container window to {187, 232}
+    set position of item "Applications" of container window to {513, 232}
     close
   end tell
 end tell
