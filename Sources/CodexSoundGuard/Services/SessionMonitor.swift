@@ -33,11 +33,12 @@ final class SessionMonitor: ObservableObject {
     private var sessionUsageByPath: [String: SessionUsageSummary] = [:]
     private var primed = false
     private let startedAt = Date()
-    private let scanInterval: TimeInterval = 1.5
+    private let activeScanInterval: TimeInterval = 1.5
+    private let idleScanInterval: TimeInterval = 6
     private let recentDayLookback = 7
     private let maxRecentFiles = 120
-    private let recentDiscoveryInterval: TimeInterval = 6
-    private let fullDiscoveryInterval: TimeInterval = 30
+    private let recentDiscoveryInterval: TimeInterval = 12
+    private let fullDiscoveryInterval: TimeInterval = 60
     private let maxDiscoveredFiles = 240
     private let bootstrapLookback: TimeInterval = 24 * 60 * 60
     private let bootstrapByteLimit: UInt64 = 1_048_576
@@ -106,11 +107,30 @@ final class SessionMonitor: ObservableObject {
         isRunning = true
         lastStatus = "正在监听 Codex 会话"
         scan()
-        timer = Timer.scheduledTimer(withTimeInterval: scanInterval, repeats: true) { [weak self] _ in
+        scheduleNextScan()
+    }
+
+    private func scheduleNextScan() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: nextScanInterval, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.scan()
+                self?.handleScanTimer()
             }
         }
+    }
+
+    private func handleScanTimer() {
+        timer = nil
+        guard isRunning else {
+            return
+        }
+
+        scan()
+        scheduleNextScan()
+    }
+
+    private var nextScanInterval: TimeInterval {
+        hasActiveTurns ? activeScanInterval : idleScanInterval
     }
 
     func testCompletionSound() {
@@ -553,6 +573,10 @@ final class SessionMonitor: ObservableObject {
 
     private func hasActiveTurn(forPath path: String) -> Bool {
         turns.keys.contains { $0.hasPrefix("\(path)\u{1F}") }
+    }
+
+    private var hasActiveTurns: Bool {
+        !turns.isEmpty
     }
 
     private func markRecognized(_ event: SessionEvent) {
