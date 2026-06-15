@@ -97,11 +97,36 @@ private struct MenuBarIconLabel: View {
 
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        keepNewestInstance()
         NSApp.setActivationPolicy(.accessory)
         Task { @MainActor in
             UpdateChecker.shared.checkAutomaticallyIfNeeded()
+        }
+    }
+
+    private func keepNewestInstance() {
+        guard let bundleIdentifier = Bundle.main.bundleIdentifier else {
+            return
+        }
+
+        let currentProcessIdentifier = ProcessInfo.processInfo.processIdentifier
+        let newerInstanceExists = NSWorkspace.shared.runningApplications.contains { application in
+            application.bundleIdentifier == bundleIdentifier &&
+                application.processIdentifier > currentProcessIdentifier
+        }
+
+        if newerInstanceExists {
+            NSApp.terminate(nil)
+            return
+        }
+
+        for application in NSWorkspace.shared.runningApplications
+            where application.bundleIdentifier == bundleIdentifier &&
+            application.processIdentifier < currentProcessIdentifier {
+            application.terminate()
         }
     }
 }

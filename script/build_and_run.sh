@@ -81,7 +81,25 @@ build_app() {
 }
 
 stop_running_processes() {
-  pkill -x "$APP_EXECUTABLE" >/dev/null 2>&1 || true
+  local pids
+  pids="$(pgrep -x "$APP_EXECUTABLE" || true)"
+  [[ -n "$pids" ]] || return 0
+
+  pkill -TERM -x "$APP_EXECUTABLE" >/dev/null 2>&1 || true
+  for _ in {1..30}; do
+    if ! pgrep -x "$APP_EXECUTABLE" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.1
+  done
+
+  pkill -KILL -x "$APP_EXECUTABLE" >/dev/null 2>&1 || true
+  for _ in {1..20}; do
+    if ! pgrep -x "$APP_EXECUTABLE" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.1
+  done
 }
 
 stop_installed_app() {
@@ -151,7 +169,7 @@ start_installed_app() {
     restart_launch_agent
   else
     stop_running_processes
-    /usr/bin/open -n "$INSTALL_BUNDLE"
+    /usr/bin/open -gj "$INSTALL_BUNDLE"
   fi
 }
 
