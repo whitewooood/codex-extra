@@ -190,11 +190,11 @@ drawRoundedRect(
 "APPLICATIONS".draw(at: NSPoint(x: 471, y: 154), withAttributes: labelAttributes)
 
 let arrowPath = NSBezierPath()
-arrowPath.move(to: NSPoint(x: 316, y: 214))
-arrowPath.line(to: NSPoint(x: 386, y: 214))
-arrowPath.move(to: NSPoint(x: 368, y: 232))
-arrowPath.line(to: NSPoint(x: 388, y: 214))
-arrowPath.line(to: NSPoint(x: 368, y: 196))
+arrowPath.move(to: NSPoint(x: 300, y: 196))
+arrowPath.line(to: NSPoint(x: 402, y: 196))
+arrowPath.move(to: NSPoint(x: 378, y: 219))
+arrowPath.line(to: NSPoint(x: 404, y: 196))
+arrowPath.line(to: NSPoint(x: 378, y: 173))
 accent.withAlphaComponent(0.72).setStroke()
 arrowPath.lineWidth = 3.5
 arrowPath.lineCapStyle = .round
@@ -244,6 +244,7 @@ ds.setWindowSize(700, 440)
 ds.setBackground(path.join(mountDir, '.background', 'background.png'))
 ds.setIconPos(`${appDisplayName}.app`, 187, 232)
 ds.setIconPos('Applications', 513, 232)
+ds.setIconPos('.background', 650, 382)
 
 ds.write(path.join(mountDir, '.DS_Store'), (error) => {
   if (error) {
