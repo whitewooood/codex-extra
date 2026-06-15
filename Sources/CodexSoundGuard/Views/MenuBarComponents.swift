@@ -356,16 +356,40 @@ private struct RemainingLimitRow: View {
         guard let resetDate = limit?.resetsAt else {
             return "重置 --"
         }
-        return "重置 \(Self.resetFormatter.string(from: resetDate))"
+        return "重置 \(Self.resetText(for: resetDate))"
     }
 
     private func remainingPercent(_ limit: UsageRateLimit) -> Double {
         100 - max(0, min(limit.usedPercent, 100))
     }
 
-    private static let resetFormatter: DateFormatter = {
+    private static func resetText(for date: Date, now: Date = Date()) -> String {
+        if Calendar.current.isDate(date, inSameDayAs: now) {
+            return sameDayResetFormatter.string(from: date)
+        }
+
+        if Calendar.current.component(.year, from: date) == Calendar.current.component(.year, from: now) {
+            return futureResetFormatter.string(from: date)
+        }
+
+        return distantResetFormatter.string(from: date)
+    }
+
+    private static let sameDayResetFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    private static let futureResetFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d HH:mm"
+        return formatter
+    }()
+
+    private static let distantResetFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy/M/d HH:mm"
         return formatter
     }()
 }
