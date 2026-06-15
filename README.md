@@ -77,7 +77,7 @@ cd codex-extra
 ./script/build_and_run.sh --uninstall-login-item
 ```
 
-设置里的登录时启动优先使用 macOS 系统登录项；源码脚本安装登录项时会写入当前用户的 `~/Library/LaunchAgents/com.whitewood.codex-monitor.plist`，不会修改系统级目录。
+设置里的登录时启动优先使用 macOS 系统登录项；源码脚本安装登录项时会写入当前用户的 `~/Library/LaunchAgents/com.whitewood.codex-monitor.plist`，通过 `/usr/bin/open -gj` 启动 App，不会修改系统级目录。
 
 ## 用量来自哪里
 
@@ -209,7 +209,7 @@ Remove the login item:
 ./script/build_and_run.sh --uninstall-login-item
 ```
 
-The Preferences toggle uses the macOS system login item service first. The source install script writes the current user's `~/Library/LaunchAgents/com.whitewood.codex-monitor.plist` and does not modify system-level directories.
+The Preferences toggle uses the macOS system login item service first. The source install script writes the current user's `~/Library/LaunchAgents/com.whitewood.codex-monitor.plist`, launches the app with `/usr/bin/open -gj`, and does not modify system-level directories.
 
 ## Where Usage Comes From
 

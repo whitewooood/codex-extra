@@ -36,6 +36,8 @@ cd codex-extra
 ~/Library/LaunchAgents/com.whitewood.codex-monitor.plist
 ```
 
+LaunchAgent 会通过 `/usr/bin/open -gj Codex Monitor.app` 启动应用。再次运行安装脚本时，如果已有登录项，会自动重写并重新加载。
+
 ## 卸载
 
 移除登录项：

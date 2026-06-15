@@ -136,6 +136,18 @@ struct PreferencesView: View {
                     isOn: loginItemBinding
                 )
 
+                if loginItemStatus.canRepair {
+                    SettingsButtonRow(
+                        title: "修复登录项",
+                        detail: "重写启动配置并重新加载",
+                        buttonTitle: "修复",
+                        systemImage: "wrench",
+                        isDisabled: false
+                    ) {
+                        repairLoginItem()
+                    }
+                }
+
                 if let loginItemMessage {
                     SettingsFootnote(text: loginItemMessage)
                 }
@@ -312,7 +324,7 @@ struct PreferencesView: View {
                 DiagnosticStatusRow(
                     title: "登录时启动",
                     detail: loginItemStatus.detail,
-                    status: loginItemStatus.isInstalled ? .ok : .neutral
+                    status: loginItemDiagnosticStatus
                 )
             }
 
@@ -402,6 +414,17 @@ struct PreferencesView: View {
         )
     }
 
+    private var loginItemDiagnosticStatus: DiagnosticStatusRow.Status {
+        switch loginItemStatus {
+        case .enabled:
+            return .ok
+        case .needsRepair, .stale:
+            return .warning
+        case .disabled:
+            return .neutral
+        }
+    }
+
     private var quietHoursSummary: String {
         "\(Self.timeLabel(for: quietHoursStartMinute)) - \(Self.timeLabel(for: quietHoursEndMinute))"
     }
@@ -449,6 +472,15 @@ struct PreferencesView: View {
         } catch {
             loginItemMessage = error.localizedDescription
             loginItemStatus = LoginItemManager.status
+        }
+    }
+
+    private func repairLoginItem() {
+        setLoginItem(true)
+        if loginItemStatus.canRepair {
+            loginItemMessage = "修复未完成：\(loginItemStatus.detail)"
+        } else {
+            loginItemMessage = "登录项已修复。"
         }
     }
 

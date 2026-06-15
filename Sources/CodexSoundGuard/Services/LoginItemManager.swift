@@ -61,17 +61,14 @@ enum LoginItemManager {
     }
 
     private static func installLaunchAgent() throws {
-        guard let executableURL = Bundle.main.executableURL else {
-            throw LoginItemError.missingExecutable
-        }
-
         guard canInstallLaunchAgentFallback else {
             throw LoginItemError.unstableAppLocation
         }
 
+        let bundlePath = Bundle.main.bundleURL.standardizedFileURL.path
         let plist: [String: Any] = [
             "Label": bundleID,
-            "ProgramArguments": [executableURL.path],
+            "ProgramArguments": ["/usr/bin/open", "-gj", bundlePath],
             "RunAtLoad": true
         ]
         let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
@@ -131,25 +128,36 @@ enum LoginItemManager {
             let data = try? Data(contentsOf: url),
             let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
             let arguments = plist["ProgramArguments"] as? [String],
-            let executablePath = arguments.first,
-            !executablePath.isEmpty
+            !arguments.isEmpty
         else {
             return .stale(reason: "LaunchAgent 配置无法读取")
         }
 
-        guard FileManager.default.fileExists(atPath: executablePath) else {
+        let target = launchAgentTarget(from: arguments)
+        guard FileManager.default.fileExists(atPath: target.path) else {
             return .stale(reason: "LaunchAgent 指向的 App 已不存在")
         }
 
-        guard let currentExecutable = Bundle.main.executableURL?.standardizedFileURL.path else {
+        if target.kind == .appBundle, target.path == Bundle.main.bundleURL.standardizedFileURL.path {
             return .enabled(kind: .launchAgent)
         }
 
-        if URL(fileURLWithPath: executablePath).standardizedFileURL.path == currentExecutable {
-            return .enabled(kind: .launchAgent)
+        if target.kind == .executable,
+           let currentExecutable = Bundle.main.executableURL?.standardizedFileURL.path,
+           target.path == currentExecutable {
+            return .needsRepair(kind: .launchAgent, reason: "LaunchAgent 使用旧启动方式")
         }
 
         return .stale(reason: "LaunchAgent 指向旧位置")
+    }
+
+    private static func launchAgentTarget(from arguments: [String]) -> LaunchAgentTarget {
+        if arguments.first == "/usr/bin/open",
+           let appPath = arguments.reversed().first(where: { $0.hasSuffix(".app") }) {
+            return LaunchAgentTarget(kind: .appBundle, path: URL(fileURLWithPath: appPath).standardizedFileURL.path)
+        }
+
+        return LaunchAgentTarget(kind: .executable, path: URL(fileURLWithPath: arguments[0]).standardizedFileURL.path)
     }
 
     private static var canInstallLaunchAgentFallback: Bool {
@@ -184,13 +192,23 @@ enum LoginItemKind: Equatable {
 enum LoginItemStatus: Equatable {
     case disabled
     case enabled(kind: LoginItemKind)
+    case needsRepair(kind: LoginItemKind, reason: String)
     case stale(reason: String)
 
     var isInstalled: Bool {
         switch self {
-        case .enabled:
+        case .enabled, .needsRepair:
             return true
         case .disabled, .stale:
+            return false
+        }
+    }
+
+    var canRepair: Bool {
+        switch self {
+        case .needsRepair, .stale:
+            return true
+        case .disabled, .enabled:
             return false
         }
     }
@@ -201,14 +219,25 @@ enum LoginItemStatus: Equatable {
             return "未开启"
         case .enabled(let kind):
             return "\(kind.title) 已开启"
+        case .needsRepair(let kind, let reason):
+            return "\(kind.title) 需修复：\(reason)"
         case .stale(let reason):
             return "\(reason)，建议重新开启"
         }
     }
 }
 
+private struct LaunchAgentTarget {
+    enum Kind {
+        case appBundle
+        case executable
+    }
+
+    let kind: Kind
+    let path: String
+}
+
 enum LoginItemError: Error, LocalizedError {
-    case missingExecutable
     case serviceManagementFailed(String)
     case unstableAppLocation
     case launchctlFailed(String)
@@ -216,8 +245,6 @@ enum LoginItemError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .missingExecutable:
-            return "找不到当前应用的可执行文件。"
         case .serviceManagementFailed(let output):
             return output.isEmpty ? "登录项注册失败。" : output
         case .unstableAppLocation:

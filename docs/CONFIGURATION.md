@@ -59,7 +59,7 @@ Codex Monitor 会将偏好设置保存在当前用户的 `UserDefaults` 中。
 ~/Library/LaunchAgents/com.whitewood.codex-monitor.plist
 ```
 
-如果 LaunchAgent 指向的 App 已被移动或删除，设置会显示失效状态，重新开启即可写入新的位置。
+LaunchAgent 使用 `/usr/bin/open -gj Codex Monitor.app` 启动应用，避免直接执行 app 内部二进制。若 LaunchAgent 指向的 App 已被移动、删除，或仍使用旧启动方式，设置会显示需要修复；点击“修复登录项”即可重写并重新加载配置。
 
 ## 更新检查
 

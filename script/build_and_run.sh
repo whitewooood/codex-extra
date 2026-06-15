@@ -112,7 +112,9 @@ write_launch_agent() {
   <string>$BUNDLE_ID</string>
   <key>ProgramArguments</key>
   <array>
-    <string>$INSTALL_BINARY</string>
+    <string>/usr/bin/open</string>
+    <string>-gj</string>
+    <string>$INSTALL_BUNDLE</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
@@ -145,6 +147,7 @@ kickstart_launch_agent() {
 
 start_installed_app() {
   if [[ -f "$LAUNCH_AGENT" ]]; then
+    write_launch_agent
     restart_launch_agent
   else
     stop_running_processes
