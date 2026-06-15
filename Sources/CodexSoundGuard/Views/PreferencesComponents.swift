@@ -159,7 +159,7 @@ private struct SidebarStatusPill: View {
                 .fill(isRunning ? InterfaceDesign.accent : Color.primary.opacity(0.30))
                 .frame(width: 7, height: 7)
 
-            Text(isRunning ? "监听中" : "已暂停")
+            Text(isRunning ? "用量中" : "启动中")
                 .font(.caption.weight(.medium))
 
             Spacer(minLength: 6)

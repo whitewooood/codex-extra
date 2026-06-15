@@ -48,7 +48,7 @@ final class SessionMonitor: ObservableObject {
 
     init(startsMonitoring: Bool = true) {
         if startsMonitoring {
-            applySettings()
+            start()
         }
     }
 
@@ -98,14 +98,6 @@ final class SessionMonitor: ObservableObject {
         return monitor
     }
 
-    func applySettings() {
-        if UserDefaults.standard.bool(forKey: AppDefaults.Key.monitoringEnabled) {
-            start()
-        } else {
-            stop()
-        }
-    }
-
     func start() {
         guard !isRunning else {
             return
@@ -119,14 +111,6 @@ final class SessionMonitor: ObservableObject {
                 self?.scan()
             }
         }
-    }
-
-    func stop() {
-        timer?.invalidate()
-        timer = nil
-        isRunning = false
-        lastStatus = "监听已暂停"
-        resetScanState()
     }
 
     func testCompletionSound() {
@@ -379,7 +363,11 @@ final class SessionMonitor: ObservableObject {
             let soundResult = play(outcome: classification.outcome)
             lastOutcome = classification.outcome
             lastClassificationReason = Self.displayReason(for: classification.reason)
-            if soundResult == .suppressedByQuietHours {
+            if soundResult == .skippedByAlertsDisabled {
+                lastStatus = "提醒已静音 \(Self.timeFormatter.string(from: Date()))"
+            } else if soundResult == .skippedBySoundDisabled {
+                lastStatus = "提示音关闭 \(Self.timeFormatter.string(from: Date()))"
+            } else if soundResult == .suppressedByQuietHours {
                 lastStatus = "安静时段内已静音 \(Self.timeFormatter.string(from: Date()))"
             } else {
                 lastStatus = "\(classification.outcome.title) \(Self.timeFormatter.string(from: Date()))"
@@ -393,6 +381,10 @@ final class SessionMonitor: ObservableObject {
     private func play(outcome: TurnOutcome, force: Bool = false) -> SoundPlaybackResult {
         let defaults = UserDefaults.standard
         let volume = defaults.double(forKey: AppDefaults.Key.volume)
+        guard force || defaults.bool(forKey: AppDefaults.Key.monitoringEnabled) else {
+            return .skippedByAlertsDisabled
+        }
+
         let quietHours = QuietHoursPolicy(
             enabled: defaults.bool(forKey: AppDefaults.Key.quietHoursEnabled),
             startMinute: defaults.integer(forKey: AppDefaults.Key.quietHoursStartMinute),
@@ -405,13 +397,13 @@ final class SessionMonitor: ObservableObject {
         switch outcome {
         case .completed:
             guard force || defaults.bool(forKey: AppDefaults.Key.completionSoundEnabled) else {
-                return .skipped
+                return .skippedBySoundDisabled
             }
             let path = defaults.string(forKey: AppDefaults.Key.completionSoundPath) ?? AppDefaults.defaultCompletionSoundPath
             soundPlayer.play(path: path, volume: volume)
         case .failed:
             guard force || defaults.bool(forKey: AppDefaults.Key.failureSoundEnabled) else {
-                return .skipped
+                return .skippedBySoundDisabled
             }
             let path = defaults.string(forKey: AppDefaults.Key.failureSoundPath) ?? AppDefaults.defaultFailureSoundPath
             soundPlayer.play(path: path, volume: volume)
@@ -596,7 +588,8 @@ final class SessionMonitor: ObservableObject {
 
 private enum SoundPlaybackResult {
     case played
-    case skipped
+    case skippedByAlertsDisabled
+    case skippedBySoundDisabled
     case suppressedByQuietHours
 }
 

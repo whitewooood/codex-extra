@@ -6,7 +6,7 @@ struct MenuBarView: View {
     @EnvironmentObject private var monitor: SessionMonitor
     @EnvironmentObject private var updateChecker: UpdateChecker
 
-    @AppStorage(AppDefaults.Key.monitoringEnabled) private var monitoringEnabled = true
+    @AppStorage(AppDefaults.Key.monitoringEnabled) private var alertsEnabled = true
     @AppStorage(AppDefaults.Key.sessionsRootPath) private var sessionsRootPath = AppDefaults.sessionsRootPath
 
     var body: some View {
@@ -43,14 +43,11 @@ struct MenuBarView: View {
 
             Spacer(minLength: 8)
 
-            StatusBadge(title: monitor.isRunning ? "监听中" : "已暂停", isActive: monitor.isRunning)
+            StatusBadge(title: monitor.isRunning ? "用量中" : "启动中", isActive: monitor.isRunning)
 
-            Toggle("", isOn: $monitoringEnabled)
+            Toggle("", isOn: $alertsEnabled)
                 .labelsHidden()
                 .toggleStyle(HeaderToggleStyle())
-                .onChange(of: monitoringEnabled) { _ in
-                    monitor.applySettings()
-                }
         }
     }
 
@@ -209,7 +206,7 @@ struct MenuBarView: View {
     }
 
     private var statusSubheading: String {
-        monitor.isRunning ? "本地用量与任务提醒" : "监听已暂停"
+        "用量监测常开 · \(alertsEnabled ? "声音提醒开启" : "声音提醒静音")"
     }
 
     private var usageEmptyDetail: String {
@@ -244,8 +241,9 @@ struct MenuBarView: View {
     }
 
     private var statusLine: String {
-        let prefix = monitor.isRunning ? "监听中" : "已暂停"
-        return "\(prefix) · \(lastOutcomeLabel)"
+        let prefix = monitor.isRunning ? "用量监测中" : "正在启动"
+        let alerts = alertsEnabled ? "提醒开" : "已静音"
+        return "\(prefix) · \(alerts) · \(lastOutcomeLabel)"
     }
 
     private var trendHeaderValue: String {

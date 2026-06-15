@@ -7,7 +7,7 @@ struct PreferencesView: View {
     @EnvironmentObject private var updateChecker: UpdateChecker
     private let loginItemStatusProvider: () -> LoginItemStatus
 
-    @AppStorage(AppDefaults.Key.monitoringEnabled) private var monitoringEnabled = true
+    @AppStorage(AppDefaults.Key.monitoringEnabled) private var alertsEnabled = true
     @AppStorage(AppDefaults.Key.completionSoundEnabled) private var completionSoundEnabled = true
     @AppStorage(AppDefaults.Key.failureSoundEnabled) private var failureSoundEnabled = true
     @AppStorage(AppDefaults.Key.commandFailureHeuristicEnabled) private var commandFailureHeuristicEnabled = false
@@ -61,9 +61,6 @@ struct PreferencesView: View {
         .onAppear {
             loginItemStatus = loginItemStatusProvider()
         }
-        .onChange(of: monitoringEnabled) { _ in
-            monitor.applySettings()
-        }
     }
 
     @ViewBuilder
@@ -83,10 +80,15 @@ struct PreferencesView: View {
     private var generalPane: some View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection(title: "运行") {
+                SettingsValueRow(
+                    title: "用量监测",
+                    value: monitor.isRunning ? "常开" : "启动中"
+                )
+
                 SettingsToggleRow(
-                    title: "监听日志",
-                    detail: monitor.isRunning ? "运行中" : "已暂停",
-                    isOn: $monitoringEnabled
+                    title: "声音提醒",
+                    detail: alertsEnabled ? "自动播放完成/失败提示音" : "静音；用量仍会更新",
+                    isOn: $alertsEnabled
                 )
 
                 SettingsValueRow(

@@ -160,10 +160,10 @@ struct HeaderToggleStyle: ToggleStyle {
             configuration.isOn.toggle()
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: configuration.isOn ? "pause.fill" : "play.fill")
+                Image(systemName: configuration.isOn ? "speaker.wave.2.fill" : "speaker.slash.fill")
                     .font(.system(size: 9, weight: .bold))
                     .frame(width: 14)
-                Text(configuration.isOn ? "暂停" : "恢复")
+                Text(configuration.isOn ? "提醒开" : "已静音")
                     .font(.caption2.weight(.semibold))
             }
             .foregroundStyle(configuration.isOn ? .primary : .secondary)
