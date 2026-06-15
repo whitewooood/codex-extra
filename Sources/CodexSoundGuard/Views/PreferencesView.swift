@@ -15,6 +15,7 @@ struct PreferencesView: View {
     @AppStorage(AppDefaults.Key.failureSoundPath) private var failureSoundPath = AppDefaults.defaultFailureSoundPath
     @AppStorage(AppDefaults.Key.volume) private var volume = 0.8
     @AppStorage(AppDefaults.Key.menuBarDisplayMode) private var menuBarDisplayMode = MenuBarDisplayMode.graphic.rawValue
+    @AppStorage(AppDefaults.Key.limitWarningsEnabled) private var limitWarningsEnabled = true
     @AppStorage(AppDefaults.Key.primaryLimitWarningThreshold) private var primaryThreshold = 20.0
     @AppStorage(AppDefaults.Key.secondaryLimitWarningThreshold) private var secondaryThreshold = 20.0
     @AppStorage(AppDefaults.Key.quietHoursEnabled) private var quietHoursEnabled = false
@@ -249,13 +250,25 @@ struct PreferencesView: View {
     private var limitsPane: some View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection(title: "提醒阈值") {
+                SettingsToggleRow(
+                    title: "额度提醒",
+                    detail: limitWarningsEnabled ? "启用阈值提醒配置" : "关闭；阈值设置会保留",
+                    isOn: $limitWarningsEnabled
+                )
+
                 SettingsInfoBox(
                     title: "推荐默认值",
                     text: "20% 适合提前知道额度快用完，但不会太早打扰。阈值越高，提醒越早。"
                 )
+                .disabled(!limitWarningsEnabled)
+                .opacity(limitWarningsEnabled ? 1 : 0.48)
 
                 ThresholdSettingsRow(title: "5 小时窗口", value: $primaryThreshold)
+                    .disabled(!limitWarningsEnabled)
+                    .opacity(limitWarningsEnabled ? 1 : 0.48)
                 ThresholdSettingsRow(title: "7 天窗口", value: $secondaryThreshold)
+                    .disabled(!limitWarningsEnabled)
+                    .opacity(limitWarningsEnabled ? 1 : 0.48)
             }
 
             SettingsSection(title: "当前用量") {

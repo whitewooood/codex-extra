@@ -159,21 +159,22 @@ struct HeaderToggleStyle: ToggleStyle {
         Button {
             configuration.isOn.toggle()
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: 7) {
                 Image(systemName: configuration.isOn ? "speaker.wave.2.fill" : "speaker.slash.fill")
-                    .font(.system(size: 9, weight: .bold))
-                    .frame(width: 14)
+                    .font(.system(size: 11, weight: .bold))
+                    .frame(width: 16)
                 Text(configuration.isOn ? "提醒开" : "已静音")
-                    .font(.caption2.weight(.semibold))
+                    .font(.caption.weight(.semibold))
             }
-            .foregroundStyle(configuration.isOn ? .primary : .secondary)
-            .padding(.horizontal, 9)
-            .frame(height: 24)
-            .background(configuration.isOn ? InterfaceDesign.accent.opacity(0.09) : InterfaceDesign.basePanel.opacity(0.56), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .foregroundStyle(configuration.isOn ? Color.white : Color.primary.opacity(0.72))
+            .padding(.horizontal, 11)
+            .frame(height: 30)
+            .background(configuration.isOn ? InterfaceDesign.accent : InterfaceDesign.basePanel.opacity(0.66), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .strokeBorder(configuration.isOn ? InterfaceDesign.accent.opacity(0.22) : InterfaceDesign.border, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(configuration.isOn ? Color.white.opacity(0.26) : InterfaceDesign.border, lineWidth: 1)
             }
+            .shadow(color: configuration.isOn ? InterfaceDesign.accent.opacity(0.18) : Color.clear, radius: 7, x: 0, y: 2)
         }
         .buttonStyle(.plain)
     }
