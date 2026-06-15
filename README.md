@@ -107,7 +107,7 @@ swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
 打包 release：
 
 ```bash
-./script/package_release.sh
+bash ./script/package_release.sh
 ```
 
 相关文档：
@@ -170,7 +170,7 @@ swift test
 Build release artifacts:
 
 ```bash
-./script/package_release.sh
+bash ./script/package_release.sh
 ```
 
 ## Privacy

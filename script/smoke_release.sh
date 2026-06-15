@@ -72,8 +72,14 @@ require_file "$mount_dir/$APP_NAME/Contents/Info.plist"
 require_file "$mount_dir/$APP_NAME/Contents/MacOS/CodexSoundGuard"
 require_file "$mount_dir/$APP_NAME/Contents/Resources/AppIcon.icns"
 require_file "$mount_dir/.background/background.png"
+require_file "$mount_dir/.DS_Store"
 if [[ ! -L "$mount_dir/Applications" ]]; then
   echo "DMG is missing Applications symlink" >&2
+  exit 1
+fi
+
+if [[ ! -s "$mount_dir/.DS_Store" ]]; then
+  echo "DMG Finder layout is empty" >&2
   exit 1
 fi
 

@@ -7,7 +7,7 @@
 ## 本地打包
 
 ```bash
-./script/package_release.sh
+bash ./script/package_release.sh
 ```
 
 产物会写入：

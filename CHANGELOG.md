@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+## [0.3.13] - 2026-06-15
+
+### 修复
+
+- 修复 GitHub Actions 构建的 DMG 没有写入 Finder `.DS_Store` 布局，导致用户打开后看到 `.background` 文件夹且背景图不显示的问题。
+- DMG 布局生成改为程序化写入 `.DS_Store`，不再依赖 Finder/AppleScript 图形会话。
+- Release smoke test 增加 `.DS_Store` 存在性和非空校验。
+
 ## [0.3.12] - 2026-06-15
 
 ### 变更

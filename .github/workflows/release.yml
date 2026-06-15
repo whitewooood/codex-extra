@@ -17,14 +17,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
       - name: Run tests
         run: swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
 
       - name: Package app
-        run: ./script/package_release.sh
+        run: bash ./script/package_release.sh
 
       - name: Smoke test release artifacts
-        run: ./script/smoke_release.sh
+        run: bash ./script/smoke_release.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

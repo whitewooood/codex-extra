@@ -217,26 +217,46 @@ try png.write(to: output)
 SWIFT
 }
 
-set_dmg_finder_layout() {
+write_dmg_ds_store() {
   local mount_dir="$1"
-  /usr/bin/osascript <<OSA >/dev/null 2>&1 || true
-tell application "Finder"
-  tell disk "$APP_DISPLAY_NAME"
-    open
-    set current view of container window to icon view
-    set toolbar visible of container window to false
-    set statusbar visible of container window to false
-    set the bounds of container window to {100, 100, 800, 540}
-    set opts to the icon view options of container window
-    set arrangement of opts to not arranged
-    set icon size of opts to 104
-    set background picture of opts to file ".background:background.png"
-    set position of item "$APP_DISPLAY_NAME.app" of container window to {187, 232}
-    set position of item "Applications" of container window to {513, 232}
-    close
-  end tell
-end tell
-OSA
+
+  if ! command -v npm >/dev/null 2>&1 || ! command -v node >/dev/null 2>&1; then
+    echo "npm and node are required to create the DMG Finder layout" >&2
+    return 1
+  fi
+
+  local node_modules_dir="$DMG_TEMP_DIR/ds-store-node"
+  mkdir -p "$node_modules_dir"
+  npm install --prefix "$node_modules_dir" --silent --no-audit --no-fund ds-store@0.1.5 >/dev/null
+
+  NODE_PATH="$node_modules_dir/node_modules" /usr/bin/env node - "$mount_dir" "$APP_DISPLAY_NAME" <<'NODE'
+const path = require('path')
+const DSStore = require('ds-store')
+
+const mountDir = process.argv[2]
+const appDisplayName = process.argv[3]
+const ds = new DSStore()
+
+ds.vSrn(1)
+ds.setIconSize(104)
+ds.setWindowPos(100, 100)
+ds.setWindowSize(700, 440)
+ds.setBackground(path.join(mountDir, '.background', 'background.png'))
+ds.setIconPos(`${appDisplayName}.app`, 187, 232)
+ds.setIconPos('Applications', 513, 232)
+
+ds.write(path.join(mountDir, '.DS_Store'), (error) => {
+  if (error) {
+    console.error(error)
+    process.exit(1)
+  }
+})
+NODE
+
+  if [[ ! -f "$mount_dir/.DS_Store" ]]; then
+    echo "failed to create DMG .DS_Store layout" >&2
+    return 1
+  fi
 }
 
 create_readwrite_dmg() {
@@ -302,12 +322,14 @@ mkdir -p "$DMG_ROOT/.background"
 cp -R "$APP_BUNDLE" "$DMG_ROOT/"
 ln -s /Applications "$DMG_ROOT/Applications"
 write_dmg_background "$DMG_ROOT/.background/background.png"
+/usr/bin/chflags hidden "$DMG_ROOT/.background" >/dev/null 2>&1 || true
 
 create_readwrite_dmg
 
 mount_dir="$(mktemp -d /tmp/codex-monitor-dmg.XXXXXX)"
 device="$(/usr/bin/hdiutil attach -readwrite -noverify -noautoopen -mountpoint "$mount_dir" "$DMG_RW_PATH" | awk '/Apple_HFS/ { print $1; exit }')"
-set_dmg_finder_layout "$mount_dir"
+write_dmg_ds_store "$mount_dir"
+/usr/bin/chflags hidden "$mount_dir/.background" "$mount_dir/.DS_Store" >/dev/null 2>&1 || true
 /bin/rm -rf "$mount_dir/.fseventsd" "$mount_dir/.Trashes"
 /bin/sync
 if [[ -n "$device" ]]; then
