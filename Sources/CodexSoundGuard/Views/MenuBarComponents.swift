@@ -314,11 +314,17 @@ private struct RemainingLimitRow: View {
 
                 Spacer()
 
-                Text(valueText)
+                Text(remainingText)
                     .font(.caption.monospacedDigit().weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
             }
+
+            Text(resetDetailText)
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.86)
 
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
@@ -331,7 +337,7 @@ private struct RemainingLimitRow: View {
                 }
             }
             .frame(height: 5)
-            .help(resetText)
+            .help(resetHelpText)
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 9)
@@ -345,18 +351,25 @@ private struct RemainingLimitRow: View {
         return 1 - (max(0, min(limit.usedPercent, 100)) / 100)
     }
 
-    private var valueText: String {
+    private var remainingText: String {
         guard let limit else {
             return "--"
         }
-        return "\(UsageFormatter.percent(remainingPercent(limit))) 剩余 · \(resetText)"
+        return "\(UsageFormatter.percent(remainingPercent(limit))) 剩余"
     }
 
-    private var resetText: String {
+    private var resetDetailText: String {
         guard let resetDate = limit?.resetsAt else {
             return "重置 --"
         }
-        return "重置 \(Self.resetText(for: resetDate))"
+        return "重置 \(Self.resetText(for: resetDate)) · \(Self.relativeResetText(until: resetDate))"
+    }
+
+    private var resetHelpText: String {
+        guard let resetDate = limit?.resetsAt else {
+            return "重置 --"
+        }
+        return "重置 \(Self.resetText(for: resetDate)) · \(Self.relativeResetText(until: resetDate))"
     }
 
     private func remainingPercent(_ limit: UsageRateLimit) -> Double {
@@ -373,6 +386,51 @@ private struct RemainingLimitRow: View {
         }
 
         return distantResetFormatter.string(from: date)
+    }
+
+    private static func relativeResetText(until date: Date, now: Date = Date()) -> String {
+        let seconds = Int(date.timeIntervalSince(now).rounded(.up))
+        guard seconds > 0 else {
+            return "即将重置"
+        }
+
+        let minute = 60
+        let hour = 60 * minute
+        let day = 24 * hour
+
+        if seconds < minute {
+            return "不足 1 分钟"
+        }
+
+        if seconds < hour {
+            return "还有 \((seconds + minute - 1) / minute) 分钟"
+        }
+
+        if seconds < day {
+            var hours = seconds / hour
+            var minutes = (seconds % hour + minute - 1) / minute
+            if minutes == 60 {
+                hours += 1
+                minutes = 0
+            }
+
+            if minutes == 0 {
+                return "还有 \(hours) 小时"
+            }
+            return "还有 \(hours) 小时 \(minutes) 分钟"
+        }
+
+        var days = seconds / day
+        var hours = (seconds % day + hour - 1) / hour
+        if hours == 24 {
+            days += 1
+            hours = 0
+        }
+
+        if hours == 0 {
+            return "还有 \(days) 天"
+        }
+        return "还有 \(days) 天 \(hours) 小时"
     }
 
     private static let sameDayResetFormatter: DateFormatter = {
