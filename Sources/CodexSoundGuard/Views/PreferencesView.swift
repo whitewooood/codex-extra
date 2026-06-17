@@ -1,4 +1,5 @@
 import AppKit
+import CodexSoundGuardCore
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -10,7 +11,7 @@ struct PreferencesView: View {
     @AppStorage(AppDefaults.Key.monitoringEnabled) private var alertsEnabled = true
     @AppStorage(AppDefaults.Key.completionSoundEnabled) private var completionSoundEnabled = true
     @AppStorage(AppDefaults.Key.failureSoundEnabled) private var failureSoundEnabled = true
-    @AppStorage(AppDefaults.Key.commandFailureHeuristicEnabled) private var commandFailureHeuristicEnabled = false
+    @AppStorage(AppDefaults.Key.failureDetectionMode) private var failureDetectionMode = TurnFailureDetectionMode.strict.rawValue
     @AppStorage(AppDefaults.Key.completionSoundPath) private var completionSoundPath = AppDefaults.defaultCompletionSoundPath
     @AppStorage(AppDefaults.Key.failureSoundPath) private var failureSoundPath = AppDefaults.defaultFailureSoundPath
     @AppStorage(AppDefaults.Key.volume) private var volume = 0.8
@@ -92,6 +93,25 @@ struct PreferencesView: View {
                     isOn: $alertsEnabled
                 )
 
+                SettingsPickerRow(
+                    title: "失败判定",
+                    value: selectedFailureDetectionMode.title
+                ) {
+                    Picker("失败判定", selection: $failureDetectionMode) {
+                        ForEach(TurnFailureDetectionMode.allCases) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 320)
+                }
+
+                SettingsInfoBox(
+                    title: selectedFailureDetectionMode.title,
+                    text: selectedFailureDetectionMode.detail
+                )
+
                 SettingsValueRow(
                     title: "已识别",
                     value: "\(monitor.filesWatched) 个文件 · \(monitor.recognizedEventCount) 个事件"
@@ -118,16 +138,6 @@ struct PreferencesView: View {
                     .frame(width: 320)
                 }
 
-                SettingsToggleRow(
-                    title: "命令失败也提醒",
-                    detail: commandFailureHeuristicEnabled ? "开启" : "关闭",
-                    isOn: $commandFailureHeuristicEnabled
-                )
-
-                SettingsInfoBox(
-                    title: "为什么默认关闭",
-                    text: "Codex 经常运行探索性命令，单个命令失败不一定代表整个任务失败；开启后会更敏感。"
-                )
             }
 
             SettingsSection(title: "启动") {
@@ -367,6 +377,10 @@ struct PreferencesView: View {
         MenuBarDisplayMode(rawValue: menuBarDisplayMode) ?? .graphic
     }
 
+    private var selectedFailureDetectionMode: TurnFailureDetectionMode {
+        TurnFailureDetectionMode(rawValue: failureDetectionMode) ?? .strict
+    }
+
     private var sessionsRootPath: String {
         UserDefaults.standard.string(forKey: AppDefaults.Key.sessionsRootPath) ?? AppDefaults.sessionsRootPath
     }
@@ -499,5 +513,29 @@ struct PreferencesView: View {
 
     private static func timeLabel(for minuteOfDay: Int) -> String {
         String(format: "%02d:%02d", minuteOfDay / 60, minuteOfDay % 60)
+    }
+}
+
+private extension TurnFailureDetectionMode {
+    var title: String {
+        switch self {
+        case .strict:
+            return "严格"
+        case .smart:
+            return "智能"
+        case .developer:
+            return "开发者"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .strict:
+            return "默认推荐。失败只认 Codex 日志里的明确失败事件；普通文本和探索性命令不会触发失败提醒。"
+        case .smart:
+            return "在严格模式基础上，会根据最后回复里的无法完成、受阻、超时等表达判断失败。"
+        case .developer:
+            return "最敏感。智能模式之外，命令非 0 退出也会参与失败判断，适合调试。"
+        }
     }
 }

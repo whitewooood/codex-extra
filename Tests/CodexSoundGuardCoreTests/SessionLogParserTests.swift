@@ -77,6 +77,39 @@ final class SessionLogParserTests: XCTestCase {
         )
     }
 
+    func testStrictModeIgnoresTextAndCommandHeuristics() {
+        let turn = TurnAccumulator(
+            latestAssistantMessage: "我未能完成这个任务。",
+            hasCommandFailure: true
+        )
+
+        XCTAssertEqual(
+            TurnClassifier.classify(turn, mode: .strict),
+            TurnClassification(outcome: .completed, reason: "task complete")
+        )
+    }
+
+    func testStrictModeStillHonorsExplicitFailureSignal() {
+        let turn = TurnAccumulator(hasFailureSignal: true)
+
+        XCTAssertEqual(
+            TurnClassifier.classify(turn, mode: .strict),
+            TurnClassification(outcome: .failed, reason: "failure event")
+        )
+    }
+
+    func testSmartAndDeveloperModesAddHeuristics() {
+        XCTAssertEqual(
+            TurnClassifier.classify(TurnAccumulator(latestAssistantMessage: "任务受阻，无法继续。"), mode: .smart),
+            TurnClassification(outcome: .failed, reason: "assistant message")
+        )
+
+        XCTAssertEqual(
+            TurnClassifier.classify(TurnAccumulator(hasCommandFailure: true), mode: .developer),
+            TurnClassification(outcome: .failed, reason: "command exit")
+        )
+    }
+
     func testClassifiesBlockedAndTimeoutMessages() {
         XCTAssertTrue(TurnClassifier.messageLooksLikeFailure("任务受阻，无法继续。"))
         XCTAssertTrue(TurnClassifier.messageLooksLikeFailure("The operation timed out before completion."))

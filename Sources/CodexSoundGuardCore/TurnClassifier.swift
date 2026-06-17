@@ -5,6 +5,16 @@ public enum TurnOutcome: String, Equatable {
     case failed
 }
 
+public enum TurnFailureDetectionMode: String, CaseIterable, Identifiable {
+    case strict
+    case smart
+    case developer
+
+    public var id: String {
+        rawValue
+    }
+}
+
 public struct TurnAccumulator: Equatable {
     public var startedAt: Date?
     public var latestAssistantMessage: String
@@ -37,21 +47,37 @@ public struct TurnClassification: Equatable {
 public enum TurnClassifier {
     public static func classify(
         _ turn: TurnAccumulator,
-        includeCommandFailures: Bool
+        mode: TurnFailureDetectionMode
     ) -> TurnClassification {
         if turn.hasFailureSignal {
             return TurnClassification(outcome: .failed, reason: "failure event")
         }
 
-        if includeCommandFailures && turn.hasCommandFailure && !messageLooksLikeResolvedSuccess(turn.latestAssistantMessage) {
-            return TurnClassification(outcome: .failed, reason: "command exit")
-        }
+        switch mode {
+        case .strict:
+            return TurnClassification(outcome: .completed, reason: "task complete")
+        case .smart:
+            if messageLooksLikeFailure(turn.latestAssistantMessage) {
+                return TurnClassification(outcome: .failed, reason: "assistant message")
+            }
+        case .developer:
+            if turn.hasCommandFailure && !messageLooksLikeResolvedSuccess(turn.latestAssistantMessage) {
+                return TurnClassification(outcome: .failed, reason: "command exit")
+            }
 
-        if messageLooksLikeFailure(turn.latestAssistantMessage) {
-            return TurnClassification(outcome: .failed, reason: "assistant message")
+            if messageLooksLikeFailure(turn.latestAssistantMessage) {
+                return TurnClassification(outcome: .failed, reason: "assistant message")
+            }
         }
 
         return TurnClassification(outcome: .completed, reason: "task complete")
+    }
+
+    public static func classify(
+        _ turn: TurnAccumulator,
+        includeCommandFailures: Bool
+    ) -> TurnClassification {
+        classify(turn, mode: includeCommandFailures ? .developer : .smart)
     }
 
     public static func messageLooksLikeFailure(_ message: String) -> Bool {

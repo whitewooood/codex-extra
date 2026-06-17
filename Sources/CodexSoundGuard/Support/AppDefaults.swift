@@ -1,3 +1,4 @@
+import CodexSoundGuardCore
 import Foundation
 
 enum AppDefaults {
@@ -6,6 +7,7 @@ enum AppDefaults {
         static let completionSoundEnabled = "completionSoundEnabled"
         static let failureSoundEnabled = "failureSoundEnabled"
         static let commandFailureHeuristicEnabled = "commandFailureHeuristicEnabled"
+        static let failureDetectionMode = "failureDetectionMode"
         static let completionSoundPath = "completionSoundPath"
         static let failureSoundPath = "failureSoundPath"
         static let sessionsRootPath = "sessionsRootPath"
@@ -54,6 +56,7 @@ enum AppDefaults {
             Key.completionSoundEnabled: true,
             Key.failureSoundEnabled: true,
             Key.commandFailureHeuristicEnabled: false,
+            Key.failureDetectionMode: TurnFailureDetectionMode.strict.rawValue,
             Key.completionSoundPath: defaultCompletionSoundPath,
             Key.failureSoundPath: defaultFailureSoundPath,
             Key.sessionsRootPath: sessionsRootPath,

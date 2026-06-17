@@ -404,8 +404,7 @@ final class SessionMonitor: ObservableObject {
                 return
             }
 
-            let includeCommands = UserDefaults.standard.bool(forKey: AppDefaults.Key.commandFailureHeuristicEnabled)
-            let classification = TurnClassifier.classify(turn, includeCommandFailures: includeCommands)
+            let classification = TurnClassifier.classify(turn, mode: failureDetectionMode)
             clearCompletedTurnState(key: key, path: path, event: event)
             logger.info("Turn classified as \(classification.outcome.rawValue, privacy: .public): \(classification.reason, privacy: .public)")
             let soundResult = play(outcome: classification.outcome)
@@ -667,6 +666,11 @@ final class SessionMonitor: ObservableObject {
 
         recognizedEventCount += 1
         lastEventStatus = "\(event.kind.title) \(Self.timeFormatter.string(from: Date()))"
+    }
+
+    private var failureDetectionMode: TurnFailureDetectionMode {
+        let rawValue = UserDefaults.standard.string(forKey: AppDefaults.Key.failureDetectionMode) ?? TurnFailureDetectionMode.strict.rawValue
+        return TurnFailureDetectionMode(rawValue: rawValue) ?? .strict
     }
 
     private static func displayReason(for reason: String) -> String {
