@@ -22,6 +22,9 @@ final class SessionMonitor: ObservableObject {
     private var offsets: [String: UInt64] = [:]
     private var partialLines: [String: String] = [:]
     private var turns: [String: TurnAccumulator] = [:]
+    private var startedTurnKeys: Set<String> = []
+    private var completedTurnKeys: Set<String> = []
+    private var completedTurnKeyOrder: [String] = []
     private var currentTurnIDByPath: [String: String] = [:]
     private var latestUserMessageByPath: [String: String] = [:]
     private var cachedDiscoveredFiles: [SessionFileCandidate] = []
@@ -46,6 +49,8 @@ final class SessionMonitor: ObservableObject {
     private let trendHourCount = 24
     private let maxUsageSamples = 500
     private let maxSessionRankings = 3
+    private let completionFreshnessTolerance: TimeInterval = 2
+    private let maxRememberedCompletions = 500
 
     init(startsMonitoring: Bool = true) {
         if startsMonitoring {
@@ -151,6 +156,7 @@ final class SessionMonitor: ObservableObject {
             partialLines.removeValue(forKey: path)
             currentTurnIDByPath.removeValue(forKey: path)
             latestUserMessageByPath.removeValue(forKey: path)
+            removeTrackedTurnKeys(forPath: path)
         }
 
         for url in urls {
@@ -345,8 +351,10 @@ final class SessionMonitor: ObservableObject {
         switch event.kind {
         case .taskStarted:
             let turnID = event.turnID ?? UUID().uuidString
+            let key = turnKey(path: path, turnID: turnID)
             currentTurnIDByPath[path] = turnID
-            turns[turnKey(path: path, turnID: turnID)] = TurnAccumulator(startedAt: event.timestamp)
+            turns[key] = TurnAccumulator(startedAt: event.timestamp)
+            startedTurnKeys.insert(key)
         case .userMessage(let message):
             latestUserMessageByPath[path] = message
         case .assistantMessage(let message):
@@ -372,13 +380,33 @@ final class SessionMonitor: ObservableObject {
             recordUsage(usage, timestamp: event.timestamp ?? Date(), path: path, title: latestUserMessageByPath[path])
         case .taskComplete:
             let key = eventTurnKey(path: path, event: event)
-            let turn = turns[key] ?? TurnAccumulator()
+            guard let turn = turns[key] else {
+                clearCompletedTurnState(key: key, path: path, event: event)
+                logger.info("Ignoring task_complete without active turn for \(path, privacy: .private)")
+                return
+            }
+
+            guard startedTurnKeys.contains(key) || turn.startedAt != nil else {
+                clearCompletedTurnState(key: key, path: path, event: event)
+                logger.info("Ignoring task_complete without matching task_started for \(path, privacy: .private)")
+                return
+            }
+
+            guard isFreshCompletion(event: event, turn: turn) else {
+                clearCompletedTurnState(key: key, path: path, event: event)
+                logger.info("Ignoring historical task_complete for \(path, privacy: .private)")
+                return
+            }
+
+            guard rememberCompletion(key) else {
+                clearCompletedTurnState(key: key, path: path, event: event)
+                logger.info("Ignoring duplicate task_complete for \(path, privacy: .private)")
+                return
+            }
+
             let includeCommands = UserDefaults.standard.bool(forKey: AppDefaults.Key.commandFailureHeuristicEnabled)
             let classification = TurnClassifier.classify(turn, includeCommandFailures: includeCommands)
-            turns[key] = nil
-            if event.turnID == nil || event.turnID == currentTurnIDByPath[path] {
-                currentTurnIDByPath.removeValue(forKey: path)
-            }
+            clearCompletedTurnState(key: key, path: path, event: event)
             logger.info("Turn classified as \(classification.outcome.rawValue, privacy: .public): \(classification.reason, privacy: .public)")
             let soundResult = play(outcome: classification.outcome)
             lastOutcome = classification.outcome
@@ -471,7 +499,11 @@ final class SessionMonitor: ObservableObject {
 
     private func apply(snapshot: SessionReplaySnapshot, path: String) {
         for (turnID, turn) in snapshot.turnsByID {
-            turns[turnKey(path: path, turnID: turnID)] = turn
+            let key = turnKey(path: path, turnID: turnID)
+            turns[key] = turn
+            if turn.startedAt != nil {
+                startedTurnKeys.insert(key)
+            }
         }
 
         if let currentTurnID = snapshot.currentTurnID {
@@ -503,6 +535,9 @@ final class SessionMonitor: ObservableObject {
         offsets.removeAll()
         partialLines.removeAll()
         turns.removeAll()
+        startedTurnKeys.removeAll()
+        completedTurnKeys.removeAll()
+        completedTurnKeyOrder.removeAll()
         currentTurnIDByPath.removeAll()
         latestUserMessageByPath.removeAll()
         cachedDiscoveredFiles.removeAll()
@@ -569,6 +604,52 @@ final class SessionMonitor: ObservableObject {
 
     private func turnKey(path: String, turnID: String) -> String {
         "\(path)\u{1F}\(turnID)"
+    }
+
+    private func clearCompletedTurnState(key: String, path: String, event: SessionEvent) {
+        turns[key] = nil
+        startedTurnKeys.remove(key)
+        if event.turnID == nil || event.turnID == currentTurnIDByPath[path] {
+            currentTurnIDByPath.removeValue(forKey: path)
+        }
+    }
+
+    private func isFreshCompletion(event: SessionEvent, turn: TurnAccumulator) -> Bool {
+        let cutoff = startedAt.addingTimeInterval(-completionFreshnessTolerance)
+        if let timestamp = event.timestamp {
+            return timestamp >= cutoff
+        }
+
+        if let startedAt = turn.startedAt {
+            return startedAt >= cutoff
+        }
+
+        return true
+    }
+
+    private func rememberCompletion(_ key: String) -> Bool {
+        guard completedTurnKeys.insert(key).inserted else {
+            return false
+        }
+
+        completedTurnKeyOrder.append(key)
+        if completedTurnKeyOrder.count > maxRememberedCompletions {
+            let overflow = completedTurnKeyOrder.count - maxRememberedCompletions
+            let removedKeys = Array(completedTurnKeyOrder.prefix(overflow))
+            completedTurnKeyOrder.removeFirst(overflow)
+            for removedKey in removedKeys {
+                completedTurnKeys.remove(removedKey)
+            }
+        }
+
+        return true
+    }
+
+    private func removeTrackedTurnKeys(forPath path: String) {
+        let prefix = "\(path)\u{1F}"
+        startedTurnKeys = startedTurnKeys.filter { !$0.hasPrefix(prefix) }
+        completedTurnKeys = completedTurnKeys.filter { !$0.hasPrefix(prefix) }
+        completedTurnKeyOrder.removeAll { $0.hasPrefix(prefix) }
     }
 
     private func hasActiveTurn(forPath path: String) -> Bool {
