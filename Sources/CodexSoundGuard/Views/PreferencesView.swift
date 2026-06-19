@@ -11,9 +11,11 @@ struct PreferencesView: View {
     @AppStorage(AppDefaults.Key.monitoringEnabled) private var alertsEnabled = true
     @AppStorage(AppDefaults.Key.completionSoundEnabled) private var completionSoundEnabled = true
     @AppStorage(AppDefaults.Key.failureSoundEnabled) private var failureSoundEnabled = true
+    @AppStorage(AppDefaults.Key.approvalSoundEnabled) private var approvalSoundEnabled = true
     @AppStorage(AppDefaults.Key.failureDetectionMode) private var failureDetectionMode = TurnFailureDetectionMode.strict.rawValue
     @AppStorage(AppDefaults.Key.completionSoundPath) private var completionSoundPath = AppDefaults.defaultCompletionSoundPath
     @AppStorage(AppDefaults.Key.failureSoundPath) private var failureSoundPath = AppDefaults.defaultFailureSoundPath
+    @AppStorage(AppDefaults.Key.approvalSoundPath) private var approvalSoundPath = AppDefaults.defaultApprovalSoundPath
     @AppStorage(AppDefaults.Key.volume) private var volume = 0.8
     @AppStorage(AppDefaults.Key.menuBarDisplayMode) private var menuBarDisplayMode = MenuBarDisplayMode.graphic.rawValue
     @AppStorage(AppDefaults.Key.limitWarningsEnabled) private var limitWarningsEnabled = true
@@ -89,7 +91,7 @@ struct PreferencesView: View {
 
                 SettingsToggleRow(
                     title: "声音提醒",
-                    detail: alertsEnabled ? "自动播放完成/失败提示音" : "静音；用量仍会更新",
+                    detail: alertsEnabled ? "自动播放完成、失败和批准提示音" : "静音；用量仍会更新",
                     isOn: $alertsEnabled
                 )
 
@@ -227,6 +229,15 @@ struct PreferencesView: View {
                     testAction: { monitor.testFailureSound() },
                     chooseAction: { chooseSound(defaultKey: AppDefaults.Key.failureSoundPath) }
                 )
+
+                SoundSettingsRow(
+                    title: "批准提醒",
+                    detail: "Codex 等待你批准操作",
+                    isEnabled: $approvalSoundEnabled,
+                    path: approvalSoundPath,
+                    testAction: { monitor.testApprovalSound() },
+                    chooseAction: { chooseSound(defaultKey: AppDefaults.Key.approvalSoundPath) }
+                )
             }
 
             SettingsSection(title: "安静时段") {
@@ -336,6 +347,12 @@ struct PreferencesView: View {
                     title: "失败声音",
                     detail: soundDiagnostic(path: failureSoundPath, isEnabled: failureSoundEnabled),
                     status: soundStatus(path: failureSoundPath, isEnabled: failureSoundEnabled)
+                )
+
+                DiagnosticStatusRow(
+                    title: "批准声音",
+                    detail: soundDiagnostic(path: approvalSoundPath, isEnabled: approvalSoundEnabled),
+                    status: soundStatus(path: approvalSoundPath, isEnabled: approvalSoundEnabled)
                 )
 
                 DiagnosticStatusRow(

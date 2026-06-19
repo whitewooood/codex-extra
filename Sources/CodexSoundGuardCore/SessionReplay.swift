@@ -76,6 +76,8 @@ public enum SessionReplay {
             case .tokenCount(let usage):
                 latestUsage = usage
                 usageEvents.append(TokenUsageEvent(timestamp: event.timestamp ?? Date(), usage: usage))
+            case .approvalRequested:
+                break
             case .ignored:
                 break
             }

@@ -6,10 +6,12 @@ enum AppDefaults {
         static let monitoringEnabled = "monitoringEnabled"
         static let completionSoundEnabled = "completionSoundEnabled"
         static let failureSoundEnabled = "failureSoundEnabled"
+        static let approvalSoundEnabled = "approvalSoundEnabled"
         static let commandFailureHeuristicEnabled = "commandFailureHeuristicEnabled"
         static let failureDetectionMode = "failureDetectionMode"
         static let completionSoundPath = "completionSoundPath"
         static let failureSoundPath = "failureSoundPath"
+        static let approvalSoundPath = "approvalSoundPath"
         static let sessionsRootPath = "sessionsRootPath"
         static let volume = "volume"
         static let menuBarDisplayMode = "menuBarDisplayMode"
@@ -49,16 +51,19 @@ enum AppDefaults {
     }
 
     static let defaultFailureSoundPath = "/System/Library/Sounds/Basso.aiff"
+    static let defaultApprovalSoundPath = "/System/Library/Sounds/Ping.aiff"
 
     static func register() {
         UserDefaults.standard.register(defaults: [
             Key.monitoringEnabled: true,
             Key.completionSoundEnabled: true,
             Key.failureSoundEnabled: true,
+            Key.approvalSoundEnabled: true,
             Key.commandFailureHeuristicEnabled: false,
             Key.failureDetectionMode: TurnFailureDetectionMode.strict.rawValue,
             Key.completionSoundPath: defaultCompletionSoundPath,
             Key.failureSoundPath: defaultFailureSoundPath,
+            Key.approvalSoundPath: defaultApprovalSoundPath,
             Key.sessionsRootPath: sessionsRootPath,
             Key.volume: 0.8,
             Key.menuBarDisplayMode: MenuBarDisplayMode.graphic.rawValue,

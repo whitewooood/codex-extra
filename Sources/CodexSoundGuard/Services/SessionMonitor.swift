@@ -25,6 +25,8 @@ final class SessionMonitor: ObservableObject {
     private var startedTurnKeys: Set<String> = []
     private var completedTurnKeys: Set<String> = []
     private var completedTurnKeyOrder: [String] = []
+    private var approvalRequestKeys: Set<String> = []
+    private var approvalRequestKeyOrder: [String] = []
     private var currentTurnIDByPath: [String: String] = [:]
     private var latestUserMessageByPath: [String: String] = [:]
     private var cachedDiscoveredFiles: [SessionFileCandidate] = []
@@ -51,6 +53,7 @@ final class SessionMonitor: ObservableObject {
     private let maxSessionRankings = 3
     private let completionFreshnessTolerance: TimeInterval = 2
     private let maxRememberedCompletions = 500
+    private let maxRememberedApprovalRequests = 500
 
     init(startsMonitoring: Bool = true) {
         if startsMonitoring {
@@ -146,6 +149,10 @@ final class SessionMonitor: ObservableObject {
         play(outcome: .failed, force: true)
     }
 
+    func testApprovalSound() {
+        playApproval(force: true)
+    }
+
     private func scan() {
         let urls = sessionFiles()
         filesWatched = urls.count
@@ -157,6 +164,7 @@ final class SessionMonitor: ObservableObject {
             currentTurnIDByPath.removeValue(forKey: path)
             latestUserMessageByPath.removeValue(forKey: path)
             removeTrackedTurnKeys(forPath: path)
+            removeTrackedApprovalRequests(forPath: path)
         }
 
         for url in urls {
@@ -355,6 +363,24 @@ final class SessionMonitor: ObservableObject {
             currentTurnIDByPath[path] = turnID
             turns[key] = TurnAccumulator(startedAt: event.timestamp)
             startedTurnKeys.insert(key)
+        case .approvalRequested(let approval):
+            let key = approvalKey(path: path, approval: approval)
+            guard rememberApprovalRequest(key) else {
+                return
+            }
+
+            logger.info("Approval requested by \(approval.toolName, privacy: .public)")
+            let soundResult = playApproval()
+            lastClassificationReason = Self.displayApprovalReason(approval)
+            if soundResult == .skippedByAlertsDisabled {
+                lastStatus = "批准提醒已静音 \(Self.timeFormatter.string(from: Date()))"
+            } else if soundResult == .skippedBySoundDisabled {
+                lastStatus = "批准提示音关闭 \(Self.timeFormatter.string(from: Date()))"
+            } else if soundResult == .suppressedByQuietHours {
+                lastStatus = "安静时段内已静音 \(Self.timeFormatter.string(from: Date()))"
+            } else {
+                lastStatus = "等待批准 \(Self.timeFormatter.string(from: Date()))"
+            }
         case .userMessage(let message):
             latestUserMessageByPath[path] = message
         case .assistantMessage(let message):
@@ -458,6 +484,32 @@ final class SessionMonitor: ObservableObject {
         return .played
     }
 
+    @discardableResult
+    private func playApproval(force: Bool = false) -> SoundPlaybackResult {
+        let defaults = UserDefaults.standard
+        let volume = defaults.double(forKey: AppDefaults.Key.volume)
+        guard force || defaults.bool(forKey: AppDefaults.Key.monitoringEnabled) else {
+            return .skippedByAlertsDisabled
+        }
+
+        let quietHours = QuietHoursPolicy(
+            enabled: defaults.bool(forKey: AppDefaults.Key.quietHoursEnabled),
+            startMinute: defaults.integer(forKey: AppDefaults.Key.quietHoursStartMinute),
+            endMinute: defaults.integer(forKey: AppDefaults.Key.quietHoursEndMinute)
+        )
+        guard force || !quietHours.isActive(at: Date()) else {
+            return .suppressedByQuietHours
+        }
+
+        guard force || defaults.bool(forKey: AppDefaults.Key.approvalSoundEnabled) else {
+            return .skippedBySoundDisabled
+        }
+
+        let path = defaults.string(forKey: AppDefaults.Key.approvalSoundPath) ?? AppDefaults.defaultApprovalSoundPath
+        soundPlayer.play(path: path, volume: volume)
+        return .played
+    }
+
     private func shouldBootstrapContext(modifiedAt: Date) -> Bool {
         modifiedAt >= startedAt.addingTimeInterval(-bootstrapLookback)
     }
@@ -537,6 +589,8 @@ final class SessionMonitor: ObservableObject {
         startedTurnKeys.removeAll()
         completedTurnKeys.removeAll()
         completedTurnKeyOrder.removeAll()
+        approvalRequestKeys.removeAll()
+        approvalRequestKeyOrder.removeAll()
         currentTurnIDByPath.removeAll()
         latestUserMessageByPath.removeAll()
         cachedDiscoveredFiles.removeAll()
@@ -605,6 +659,10 @@ final class SessionMonitor: ObservableObject {
         "\(path)\u{1F}\(turnID)"
     }
 
+    private func approvalKey(path: String, approval: ApprovalRequest) -> String {
+        "\(path)\u{1F}\(approval.id)"
+    }
+
     private func clearCompletedTurnState(key: String, path: String, event: SessionEvent) {
         turns[key] = nil
         startedTurnKeys.remove(key)
@@ -651,6 +709,30 @@ final class SessionMonitor: ObservableObject {
         completedTurnKeyOrder.removeAll { $0.hasPrefix(prefix) }
     }
 
+    private func rememberApprovalRequest(_ key: String) -> Bool {
+        guard approvalRequestKeys.insert(key).inserted else {
+            return false
+        }
+
+        approvalRequestKeyOrder.append(key)
+        if approvalRequestKeyOrder.count > maxRememberedApprovalRequests {
+            let overflow = approvalRequestKeyOrder.count - maxRememberedApprovalRequests
+            let removedKeys = Array(approvalRequestKeyOrder.prefix(overflow))
+            approvalRequestKeyOrder.removeFirst(overflow)
+            for removedKey in removedKeys {
+                approvalRequestKeys.remove(removedKey)
+            }
+        }
+
+        return true
+    }
+
+    private func removeTrackedApprovalRequests(forPath path: String) {
+        let prefix = "\(path)\u{1F}"
+        approvalRequestKeys = approvalRequestKeys.filter { !$0.hasPrefix(prefix) }
+        approvalRequestKeyOrder.removeAll { $0.hasPrefix(prefix) }
+    }
+
     private func hasActiveTurn(forPath path: String) -> Bool {
         turns.keys.contains { $0.hasPrefix("\(path)\u{1F}") }
     }
@@ -688,6 +770,13 @@ final class SessionMonitor: ObservableObject {
         }
     }
 
+    private static func displayApprovalReason(_ approval: ApprovalRequest) -> String {
+        if let reason = approval.reason, !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return reason
+        }
+        return "Codex 正在等待你批准操作"
+    }
+
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
@@ -709,6 +798,8 @@ private extension SessionEventKind {
             return "识别到开始"
         case .taskComplete:
             return "识别到结束"
+        case .approvalRequested:
+            return "识别到批准请求"
         case .userMessage:
             return "识别到用户任务"
         case .assistantMessage:

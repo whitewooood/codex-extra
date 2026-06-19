@@ -17,7 +17,8 @@ public enum SessionLogParser {
 
         let timestamp = parseDate(root["timestamp"] as? String)
         let payloadType = payload["type"] as? String
-        let turnID = payload["turn_id"] as? String ?? root["turn_id"] as? String
+        let metadata = payload["metadata"] as? [String: Any]
+        let turnID = payload["turn_id"] as? String ?? root["turn_id"] as? String ?? metadata?["turn_id"] as? String
 
         if let status = payload["status"] as? String,
            status.caseInsensitiveCompare("failed") == .orderedSame
@@ -95,6 +96,11 @@ public enum SessionLogParser {
             }
         }
 
+        if payloadType == "function_call",
+           let approval = approvalRequest(from: payload) {
+            return SessionEvent(kind: .approvalRequested(approval), timestamp: timestamp, turnID: turnID)
+        }
+
         if payloadType == "function_call_output",
            let output = payload["output"] as? String,
            let code = commandExitCode(in: output) {
@@ -102,6 +108,26 @@ public enum SessionLogParser {
         }
 
         return SessionEvent(kind: .ignored, timestamp: timestamp, turnID: turnID)
+    }
+
+    private static func approvalRequest(from payload: [String: Any]) -> ApprovalRequest? {
+        guard
+            let arguments = payload["arguments"] as? String,
+            let argumentData = arguments.data(using: .utf8),
+            let parsedArguments = try? JSONSerialization.jsonObject(with: argumentData) as? [String: Any],
+            (parsedArguments["sandbox_permissions"] as? String) == "require_escalated"
+        else {
+            return nil
+        }
+
+        let toolName = payload["name"] as? String ?? "tool"
+        let callID = payload["call_id"] as? String
+        let fallbackID = [toolName, arguments].joined(separator: ":")
+        return ApprovalRequest(
+            id: callID ?? fallbackID,
+            toolName: toolName,
+            reason: parsedArguments["justification"] as? String
+        )
     }
 
     private static func parseTokenUsageSnapshot(payload: [String: Any]) -> TokenUsageSnapshot? {

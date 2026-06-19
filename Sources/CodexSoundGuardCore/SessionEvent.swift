@@ -3,6 +3,7 @@ import Foundation
 public enum SessionEventKind: Equatable {
     case taskStarted
     case taskComplete
+    case approvalRequested(ApprovalRequest)
     case userMessage(String)
     case assistantMessage(String)
     case failureSignal(String)
@@ -20,6 +21,18 @@ public struct SessionEvent: Equatable {
         self.kind = kind
         self.timestamp = timestamp
         self.turnID = turnID
+    }
+}
+
+public struct ApprovalRequest: Equatable {
+    public let id: String
+    public let toolName: String
+    public let reason: String?
+
+    public init(id: String, toolName: String, reason: String? = nil) {
+        self.id = id
+        self.toolName = toolName
+        self.reason = reason
     }
 }
 

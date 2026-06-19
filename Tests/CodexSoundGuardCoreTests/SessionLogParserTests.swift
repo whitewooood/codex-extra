@@ -52,6 +52,23 @@ final class SessionLogParserTests: XCTestCase {
         XCTAssertEqual(SessionLogParser.parseLine(line)?.kind, .commandExit(code: 128))
     }
 
+    func testParsesApprovalRequest() {
+        let line = #"{"timestamp":"2026-06-19T12:00:00.000Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"npm run release:local\",\"sandbox_permissions\":\"require_escalated\",\"justification\":\"需要允许打包流程吗？\"}","call_id":"call-approval","metadata":{"turn_id":"turn-approval"}}}"#
+
+        let event = SessionLogParser.parseLine(line)
+        XCTAssertEqual(
+            event?.kind,
+            .approvalRequested(ApprovalRequest(id: "call-approval", toolName: "exec_command", reason: "需要允许打包流程吗？"))
+        )
+        XCTAssertEqual(event?.turnID, "turn-approval")
+    }
+
+    func testIgnoresFunctionCallWithoutApprovalRequest() {
+        let line = #"{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"git status --short\"}","call_id":"call-normal"}}"#
+
+        XCTAssertEqual(SessionLogParser.parseLine(line)?.kind, .ignored)
+    }
+
     func testParsesTokenCountUsage() {
         let line = #"{"timestamp":"2026-06-14T12:00:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":1200,"cached_input_tokens":300,"output_tokens":80,"reasoning_output_tokens":20,"total_tokens":1300},"last_token_usage":{"input_tokens":200,"cached_input_tokens":50,"output_tokens":30,"reasoning_output_tokens":10,"total_tokens":230},"model_context_window":258400},"rate_limits":{"primary":{"used_percent":37.5,"window_minutes":300,"resets_at":1781450000},"secondary":{"used_percent":12.0,"window_minutes":10080,"resets_at":1782000000},"credits":{"has_credits":false,"unlimited":false,"balance":"0"}}}}"#
 
